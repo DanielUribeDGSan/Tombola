@@ -16,8 +16,9 @@ import {
   Star,
 } from "lucide-react";
 
-// Cambiar la importación al nuevo archivo de audio
+// Importación de archivos de audio
 import Ruleta1Mp3 from "./assets/mp3/ruleta1.mp3";
+import CongratulationsMp3 from "./assets/mp3/congratulations.mp3";
 
 interface Participant {
   id: string;
@@ -27,7 +28,7 @@ interface Participant {
 
 function App() {
   // 🎛️ VARIABLE CONFIGURABLE PARA EL TIEMPO DE GIRO (en milisegundos)
-  const SPIN_DURATION = 10000; // Cambia este valor para modificar el tiempo de giro
+  const SPIN_DURATION = 3000; // Cambia este valor para modificar el tiempo de giro
 
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [newParticipant, setNewParticipant] = useState("");
@@ -38,6 +39,7 @@ function App() {
   const [winnerBallAnimation, setWinnerBallAnimation] = useState(false);
   const tombolaRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const congratulationsAudioRef = useRef<HTMLAudioElement>(null);
 
   const colors = [
     "#EF4444",
@@ -141,6 +143,14 @@ function App() {
       setWinnerBallAnimation(true);
       setShowConfetti(true);
 
+      // 🎊 REPRODUCIR SONIDO DE FELICITACIÓN
+      if (congratulationsAudioRef.current) {
+        congratulationsAudioRef.current.currentTime = 0;
+        congratulationsAudioRef.current.play().catch((error) => {
+          console.log("No se pudo reproducir el audio de felicitación:", error);
+        });
+      }
+
       if (tombolaRef.current) {
         tombolaRef.current.style.transform = "rotate(0deg)";
         tombolaRef.current.style.transition = "";
@@ -160,6 +170,10 @@ function App() {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
+      }
+      if (congratulationsAudioRef.current) {
+        congratulationsAudioRef.current.pause();
+        congratulationsAudioRef.current.currentTime = 0;
       }
 
       setParticipants([]);
@@ -197,6 +211,10 @@ function App() {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
+      }
+      if (congratulationsAudioRef.current) {
+        congratulationsAudioRef.current.pause();
+        congratulationsAudioRef.current.currentTime = 0;
       }
     };
   }, []);
@@ -508,7 +526,18 @@ function App() {
       {/* Audio element para el sonido ruleta1 */}
       <audio ref={audioRef} preload="auto" style={{ display: "none" }} loop>
         <source src={Ruleta1Mp3} type="audio/mpeg" />
-        <source src="/assets/ruleta1.wav" type="audio/wav" />
+        <source src="/assets/mp3/ruleta1.wav" type="audio/wav" />
+        Tu navegador no soporta audio.
+      </audio>
+
+      {/* Audio element para el sonido de felicitación */}
+      <audio
+        ref={congratulationsAudioRef}
+        preload="auto"
+        style={{ display: "none" }}
+      >
+        <source src={CongratulationsMp3} type="audio/mpeg" />
+        <source src="/assets/mp3/congratulations.wav" type="audio/wav" />
         Tu navegador no soporta audio.
       </audio>
 
