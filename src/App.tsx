@@ -16,6 +16,9 @@ import {
   Star,
 } from "lucide-react";
 
+// Cambiar la importación al nuevo archivo de audio
+import Ruleta1Mp3 from "./assets/mp3/ruleta1.mp3";
+
 interface Participant {
   id: string;
   name: string;
@@ -23,6 +26,9 @@ interface Participant {
 }
 
 function App() {
+  // 🎛️ VARIABLE CONFIGURABLE PARA EL TIEMPO DE GIRO (en milisegundos)
+  const SPIN_DURATION = 10000; // Cambia este valor para modificar el tiempo de giro
+
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [newParticipant, setNewParticipant] = useState("");
   const [isSpinning, setIsSpinning] = useState(false);
@@ -31,6 +37,7 @@ function App() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [winnerBallAnimation, setWinnerBallAnimation] = useState(false);
   const tombolaRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   const colors = [
     "#EF4444",
@@ -97,18 +104,34 @@ function App() {
   const spinTombola = useCallback(() => {
     if (participants.length < 2 || isSpinning) return;
 
+    // Reproducir sonido con loop
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0; // Reiniciar audio si ya está reproduciéndose
+      audioRef.current.play().catch((error) => {
+        console.log("No se pudo reproducir el audio:", error);
+      });
+    }
+
     setIsSpinning(true);
     setCurrentWinner(null);
     setWinnerBallAnimation(false);
-    const duration = 2500; // Duración fija más corta
 
-    // Animación más simple para la tombola
+    // Usar la variable configurable para la duración
+    const duration = SPIN_DURATION;
+
+    // Animación de la tombola usando la duración configurable
     if (tombolaRef.current) {
       tombolaRef.current.style.transform = "rotate(1080deg)";
       tombolaRef.current.style.transition = `transform ${duration}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`;
     }
 
     setTimeout(() => {
+      // Detener el sonido cuando termine el giro
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+
       const winner =
         participants[Math.floor(Math.random() * participants.length)];
       setCurrentWinner(winner);
@@ -128,11 +151,17 @@ function App() {
         setShowConfetti(false);
         setWinnerBallAnimation(false);
       }, 2000);
-    }, duration);
-  }, [participants, isSpinning]);
+    }, duration); // Usar la duración configurable aquí también
+  }, [participants, isSpinning, SPIN_DURATION]);
 
   const resetGame = useCallback(() => {
     if (!isSpinning) {
+      // Detener cualquier sonido que esté reproduciéndose
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+
       setParticipants([]);
       setWinners([]);
       setCurrentWinner(null);
@@ -161,6 +190,16 @@ function App() {
     window.addEventListener("keydown", handleGlobalKeyPress);
     return () => window.removeEventListener("keydown", handleGlobalKeyPress);
   }, [participants.length, isSpinning, spinTombola]);
+
+  // Cleanup audio al desmontar el componente
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+    };
+  }, []);
 
   // Confetti optimizado - menos partículas
   const confettiElements = useMemo(() => {
@@ -196,6 +235,10 @@ function App() {
           </h1>
           <p className="text-xl text-white/90 font-medium">
             ¡Agrega participantes y gira la tombola para elegir un ganador!
+          </p>
+          {/* Indicador del tiempo de giro configurado */}
+          <p className="text-sm text-white/70 mt-2">
+            ⏱️ Tiempo de giro: {SPIN_DURATION / 1000} segundos
           </p>
         </div>
 
@@ -462,6 +505,13 @@ function App() {
         </div>
       </div>
 
+      {/* Audio element para el sonido ruleta1 */}
+      <audio ref={audioRef} preload="auto" style={{ display: "none" }} loop>
+        <source src={Ruleta1Mp3} type="audio/mpeg" />
+        <source src="/assets/ruleta1.wav" type="audio/wav" />
+        Tu navegador no soporta audio.
+      </audio>
+
       <style jsx>{`
         @keyframes confetti-fall {
           0% {
@@ -482,16 +532,6 @@ function App() {
           100% {
             transform: scale(1);
             opacity: 1;
-          }
-        }
-
-        @keyframes ball-spin {
-          0%,
-          100% {
-            transform: translate(-50%, -50%) rotate(0deg);
-          }
-          50% {
-            transform: translate(-50%, -50%) rotate(180deg);
           }
         }
 
