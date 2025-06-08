@@ -354,7 +354,7 @@ function App() {
                       return (
                         <div
                           key={participant.id}
-                          className={`absolute w-5 h-5 rounded-full border-2 border-white shadow-lg transition-all duration-300 ${
+                          className={`absolute w-6 h-6 rounded-full border-2 border-gray-700 shadow-lg transition-all duration-300 flex items-center justify-center ${
                             isSpinning
                               ? "animate-bounce-crazy"
                               : isWinnerBall && winnerBallAnimation
@@ -375,10 +375,28 @@ function App() {
                             boxShadow:
                               isWinnerBall && winnerBallAnimation
                                 ? `0 0 15px ${participant.color}`
-                                : "0 2px 4px rgba(0,0,0,0.2)",
+                                : "0 3px 6px rgba(0,0,0,0.3)",
                             animationDelay: `${index * 0.1}s`,
                           }}
-                        />
+                        >
+                          {/* Círculo blanco con la inicial */}
+                          <div
+                            className="w-4 h-4 bg-white rounded-full flex items-center justify-center border border-gray-300"
+                            style={{
+                              boxShadow: "inset 0 1px 2px rgba(0,0,0,0.1)",
+                            }}
+                          >
+                            <span
+                              className="text-xs font-bold text-gray-800"
+                              style={{
+                                fontSize: "10px",
+                                lineHeight: "1",
+                              }}
+                            >
+                              {participant.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
