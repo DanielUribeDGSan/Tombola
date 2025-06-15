@@ -15,11 +15,10 @@ import {
   Sparkles,
   Star,
 } from "lucide-react";
-
+import Lottie from "lottie-react";
+import confettiAnimation from "./assets/confeti/confeti.json";
 import AudioRuleta from "./assets/mp3/ruleta1.mp3";
-
 import AudioFelicitacion from "./assets/mp3/congratulations.mp3";
-
 interface Participant {
   id: string;
   name: string;
@@ -153,7 +152,7 @@ function App() {
       setTimeout(() => {
         setShowConfetti(false);
         setWinnerBallAnimation(false);
-      }, 2000);
+      }, 5000); // Aumentamos a 5 segundos para que Lottie se vea completo
     }, SPIN_DURATION);
   }, [participants, isSpinning, SPIN_DURATION]);
 
@@ -215,26 +214,59 @@ function App() {
   const confettiElements = useMemo(() => {
     if (!showConfetti) return null;
 
-    return [...Array(30)].map((_, i) => (
-      <div
-        key={i}
-        className="fixed pointer-events-none animate-pulse"
-        style={{
-          left: `${Math.random() * 100}%`,
-          top: "-20px",
-          fontSize: `${12 + Math.random() * 16}px`,
-          color: colors[Math.floor(Math.random() * colors.length)],
-          zIndex: 50,
-        }}
-      >
-        {Math.random() > 0.5 ? "✨" : "🎉"}
-      </div>
-    ));
-  }, [showConfetti, colors]);
+    const confettiArray = [];
+    const colors = [
+      "#FFD700",
+      "#FF6B6B",
+      "#4ECDC4",
+      "#45B7D1",
+      "#96CEB4",
+      "#FECA57",
+      "#FF9FF3",
+      "#54A0FF",
+    ];
+    const shapes = ["✨", "🌟", "💫", "🎈"];
+
+    // Confetti complementario más ligero para acompañar a Lottie
+    for (let i = 0; i < 20; i++) {
+      confettiArray.push(
+        <div
+          key={`complement-${i}`}
+          className="fixed pointer-events-none animate-confetti-fall"
+          style={{
+            left: `${Math.random() * 100}%`,
+            top: "-20px",
+            fontSize: `${16 + Math.random() * 12}px`,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            animationDelay: `${Math.random() * 3}s`,
+            animationDuration: `${4 + Math.random() * 2}s`,
+            zIndex: 45, // Menor que Lottie
+            transform: `rotate(${Math.random() * 360}deg)`,
+          }}
+        >
+          {shapes[Math.floor(Math.random() * shapes.length)]}
+        </div>
+      );
+    }
+
+    return confettiArray;
+  }, [showConfetti]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-400 via-red-500 to-purple-600 p-4">
       {confettiElements}
+
+      {/* Lottie Confetti Animation */}
+      {showConfetti && (
+        <div className="fixed inset-0 pointer-events-none z-50 flex items-center justify-center">
+          <Lottie
+            animationData={confettiAnimation}
+            style={{ width: "100%", height: "100%" }}
+            loop={false}
+            autoplay={true}
+          />
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-8">
@@ -513,7 +545,195 @@ function App() {
         </div>
       </div>
 
-      {/* Audio element para el sonido de la ruleta */}
+      <style jsx>{`
+        @keyframes confetti-fall {
+          0% {
+            transform: translateY(-100vh) translateX(0) rotate(0deg);
+            opacity: 1;
+          }
+          10% {
+            transform: translateY(-90vh) translateX(10px) rotate(90deg);
+          }
+          20% {
+            transform: translateY(-70vh) translateX(-5px) rotate(180deg);
+          }
+          30% {
+            transform: translateY(-50vh) translateX(15px) rotate(270deg);
+          }
+          40% {
+            transform: translateY(-30vh) translateX(-10px) rotate(360deg);
+          }
+          50% {
+            transform: translateY(-10vh) translateX(20px) rotate(450deg);
+          }
+          60% {
+            transform: translateY(10vh) translateX(-15px) rotate(540deg);
+          }
+          70% {
+            transform: translateY(30vh) translateX(10px) rotate(630deg);
+          }
+          80% {
+            transform: translateY(50vh) translateX(-5px) rotate(720deg);
+          }
+          90% {
+            transform: translateY(70vh) translateX(15px) rotate(810deg);
+          }
+          100% {
+            transform: translateY(100vh) translateX(0) rotate(900deg);
+            opacity: 0;
+          }
+        }
+
+        @keyframes confetti-burst {
+          0% {
+            transform: translate(-50%, -50%) rotate(0deg) scale(0.1);
+            opacity: 1;
+          }
+          20% {
+            transform: translate(-50%, -50%) rotate(var(--burst-angle))
+              translateX(calc(var(--burst-distance) * 0.3))
+              rotate(var(--burst-rotation)) scale(1.3);
+            opacity: 1;
+          }
+          60% {
+            transform: translate(-50%, -50%) rotate(var(--burst-angle))
+              translateX(var(--burst-distance))
+              rotate(calc(var(--burst-rotation) * 2)) scale(1);
+            opacity: 0.8;
+          }
+          100% {
+            transform: translate(-50%, -50%) rotate(var(--burst-angle))
+              translateX(calc(var(--burst-distance) * 1.5))
+              rotate(calc(var(--burst-rotation) * 3)) scale(0.3);
+            opacity: 0;
+          }
+        }
+
+        @keyframes confetti-gravity {
+          0% {
+            transform: translate(-50%, -50%) scale(0.1) rotate(0deg);
+            opacity: 1;
+          }
+          25% {
+            transform: translate(-50%, -50%)
+              translateX(calc(var(--gravity-x) * 0.5)) translateY(-100px)
+              scale(1.2) rotate(180deg);
+            opacity: 1;
+          }
+          50% {
+            transform: translate(-50%, -50%) translateX(var(--gravity-x))
+              translateY(-50px) scale(1) rotate(360deg);
+            opacity: 0.9;
+          }
+          75% {
+            transform: translate(-50%, -50%)
+              translateX(calc(var(--gravity-x) * 1.2)) translateY(50px)
+              scale(0.8) rotate(540deg);
+            opacity: 0.6;
+          }
+          100% {
+            transform: translate(-50%, -50%)
+              translateX(calc(var(--gravity-x) * 1.5)) translateY(200px)
+              scale(0.3) rotate(720deg);
+            opacity: 0;
+          }
+        }
+
+        @keyframes confetti-explode {
+          0% {
+            transform: translate(-50%, -50%) rotate(var(--explosion-angle))
+              translateX(0) scale(1);
+            opacity: 1;
+          }
+          50% {
+            transform: translate(-50%, -50%) rotate(var(--explosion-angle))
+              translateX(200px) scale(1.2);
+            opacity: 0.8;
+          }
+          100% {
+            transform: translate(-50%, -50%) rotate(var(--explosion-angle))
+              translateX(400px) scale(0.5);
+            opacity: 0;
+          }
+        }
+
+        @keyframes bounce-in {
+          0% {
+            transform: scale(0.5);
+            opacity: 0;
+          }
+          100% {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+
+        .animate-confetti-fall {
+          animation: confetti-fall linear forwards;
+        }
+
+        .animate-confetti-burst {
+          animation: confetti-burst ease-out forwards;
+        }
+
+        .animate-confetti-gravity {
+          animation: confetti-gravity cubic-bezier(0.25, 0.46, 0.45, 0.94)
+            forwards;
+        }
+
+        .animate-confetti-explode {
+          animation: confetti-explode ease-out forwards;
+        }
+
+        .animate-bounce {
+          animation: bounce 1s infinite;
+        }
+
+        .animate-ping {
+          animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+
+        .animate-pulse {
+          animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        .animate-spin {
+          animation: spin 1s linear infinite;
+        }
+
+        @keyframes bounce {
+          0%,
+          100% {
+            transform: translateY(-25%);
+            animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+          }
+          50% {
+            transform: none;
+            animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+          }
+        }
+
+        @keyframes ping {
+          75%,
+          100% {
+            transform: scale(2);
+            opacity: 0;
+          }
+        }
+
+        @keyframes pulse {
+          50% {
+            opacity: 0.5;
+          }
+        }
+
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+      `}</style>
+
       <audio ref={audioRef} preload="auto" style={{ display: "none" }} loop>
         <source src={AudioRuleta} type="audio/mpeg" />
         <source src="/assets/ruleta1.wav" type="audio/wav" />
