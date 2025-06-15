@@ -104,7 +104,6 @@ function App() {
   const spinTombola = useCallback(() => {
     if (participants.length < 2 || isSpinning) return;
 
-    // Reproducir sonido de ruleta
     if (audioRef.current) {
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch((error) => {
@@ -122,7 +121,6 @@ function App() {
     }
 
     setTimeout(() => {
-      // Detener el sonido cuando termine el giro
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
@@ -137,7 +135,6 @@ function App() {
       setWinnerBallAnimation(true);
       setShowConfetti(true);
 
-      // 🎊 REPRODUCIR SONIDO DE FELICITACIÓN
       if (congratulationsAudioRef.current) {
         congratulationsAudioRef.current.currentTime = 0;
         congratulationsAudioRef.current.play().catch((error) => {
@@ -159,7 +156,6 @@ function App() {
 
   const resetGame = useCallback(() => {
     if (!isSpinning) {
-      // Detener cualquier sonido que esté reproduciéndose
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
@@ -198,7 +194,6 @@ function App() {
     return () => window.removeEventListener("keydown", handleGlobalKeyPress);
   }, [participants.length, isSpinning, spinTombola]);
 
-  // Cleanup audio al desmontar el componente
   useEffect(() => {
     return () => {
       if (audioRef.current) {
@@ -226,36 +221,33 @@ function App() {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-6xl font-bold text-white mb-4 drop-shadow-lg">
-            🎊 TOMBOLA MÁGICA 🎊
-          </h1>
-          <p className="text-xl text-white/90 font-medium">
-            ¡Agrega participantes y gira la tombola para elegir un ganador!
-          </p>
-          <p className="text-sm text-white/70 mt-2">
-            ⏱️ Tiempo de giro: {SPIN_DURATION / 1000} segundos
-          </p>
+      <div className="container-fluid">
+        {/* Header */}
+        <div className="row">
+          <div className="col-12">
+            <div className="text-center mb-4 mb-md-5 header-section">
+              <h1 className="tombola-title">🎊 TOMBOLA MÁGICA 🎊</h1>
+              <p className="tombola-subtitle">
+                ¡Agrega participantes y gira la tombola para elegir un ganador!
+              </p>
+              <p className="tombola-timer">
+                ⏱️ Tiempo de giro: {SPIN_DURATION / 1000} segundos
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-8">
-          {/* Columna Izquierda - Tombola Grande */}
-          <div className="flex items-center justify-center">
-            <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 shadow-2xl text-center w-full max-w-lg">
-              <div className="relative mb-8">
+        {/* Main Content */}
+        <div className="row g-3 g-lg-4">
+          {/* Tombola Column */}
+          <div className="col-12 col-lg-6 order-2 order-lg-1">
+            <div className="tombola-card">
+              <div className="tombola-wrapper">
                 <div
                   ref={tombolaRef}
-                  className="w-96 h-96 mx-auto relative overflow-hidden transition-transform duration-500"
-                  style={{
-                    background: "linear-gradient(145deg, #e2e8f0, #cbd5e1)",
-                    borderRadius: "50%",
-                    border: "16px solid #64748b",
-                    boxShadow:
-                      "inset 0 8px 16px rgba(0,0,0,0.2), 0 16px 64px rgba(0,0,0,0.3)",
-                  }}
+                  className={`tombola-roulette ${isSpinning ? "spinning" : ""}`}
                 >
-                  <div className="absolute inset-4 rounded-full">
+                  <div className="tombola-inner">
                     {participants.map((participant, index) => {
                       const position = ballPositions[index];
                       const isWinnerBall =
@@ -264,12 +256,12 @@ function App() {
                       return (
                         <div
                           key={participant.id}
-                          className={`absolute w-10 h-10 rounded-full border-2 border-gray-700 shadow-lg transition-all duration-300 flex items-center justify-center ${
+                          className={`participant-ball ${
                             isSpinning
-                              ? "animate-bounce"
+                              ? "bouncing"
                               : isWinnerBall && winnerBallAnimation
-                              ? "animate-ping"
-                              : "animate-pulse"
+                              ? "winner-ball"
+                              : "floating"
                           }`}
                           style={{
                             backgroundColor: participant.color,
@@ -288,16 +280,8 @@ function App() {
                                 : "0 5px 10px rgba(0,0,0,0.3)",
                           }}
                         >
-                          <div
-                            className="w-7 h-7 bg-white rounded-full flex items-center justify-center border border-gray-300"
-                            style={{
-                              boxShadow: "inset 0 1px 2px rgba(0,0,0,0.1)",
-                            }}
-                          >
-                            <span
-                              className="text-base font-bold text-gray-800"
-                              style={{ fontSize: "14px", lineHeight: "1" }}
-                            >
+                          <div className="participant-ball-inner">
+                            <span className="participant-initial">
                               {participant.name.charAt(0).toUpperCase()}
                             </span>
                           </div>
@@ -306,188 +290,185 @@ function App() {
                     })}
                   </div>
 
-                  <div className="absolute inset-1/2 transform -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full shadow-lg flex items-center justify-center z-20">
+                  <div className="tombola-center">
                     <Sparkles
-                      className={`w-10 h-10 text-white ${
-                        isSpinning ? "animate-spin" : ""
+                      className={`tombola-center-icon ${
+                        isSpinning ? "spinning-icon" : ""
                       }`}
                     />
                   </div>
                 </div>
               </div>
 
+              {/* Winner Display */}
               {currentWinner && (
-                <div className="mb-6 p-6 bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 rounded-2xl text-white animate-bounce">
-                  <div className="flex items-center justify-center gap-3 mb-3">
-                    <Trophy className="w-12 h-12" />
-                    <div className="text-4xl">🎉</div>
-                    <Trophy className="w-12 h-12" />
+                <div className="winner-display">
+                  <div className="winner-icons">
+                    <Trophy className="winner-trophy" />
+                    <div className="winner-emoji">🎉</div>
+                    <Trophy className="winner-trophy" />
                   </div>
-                  <h3 className="text-2xl font-bold mb-2">¡FELICITACIONES!</h3>
-                  <p className="text-3xl font-bold mb-2">
-                    {currentWinner.name}
-                  </p>
-                  <div className="flex items-center justify-center gap-2 text-lg">
+                  <h3 className="winner-title">¡FELICITACIONES!</h3>
+                  <p className="winner-name">{currentWinner.name}</p>
+                  <div className="winner-subtitle">
                     <span>¡Eres el ganador!</span>
                     <div
-                      className="w-4 h-4 rounded-full border-2 border-white"
+                      className="winner-color-indicator"
                       style={{ backgroundColor: currentWinner.color }}
                     />
                   </div>
-                  <div className="mt-3 text-sm opacity-90">
-                    🌟 ¡Increíble suerte! 🌟
-                  </div>
+                  <div className="winner-stars">🌟 ¡Increíble suerte! 🌟</div>
                 </div>
               )}
 
+              {/* Spin Button */}
               <button
                 onClick={spinTombola}
                 disabled={participants.length < 2 || isSpinning}
-                className={`w-full py-4 px-6 rounded-2xl font-bold text-xl transition-all duration-300 ${
+                className={`btn w-100 spin-button ${
                   participants.length >= 2 && !isSpinning
-                    ? "bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white transform hover:scale-105 shadow-lg"
-                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    ? "btn-primary spin-button-active"
+                    : "btn-secondary spin-button-disabled"
                 }`}
               >
-                <div className="flex items-center justify-center gap-3">
+                <div className="d-flex align-items-center justify-content-center gap-2">
                   <Play
-                    className={`w-6 h-6 ${isSpinning ? "animate-spin" : ""}`}
+                    className={`spin-button-icon ${
+                      isSpinning ? "spinning-icon" : ""
+                    }`}
                   />
-                  {isSpinning ? "¡Girando la Magia!" : "¡GIRAR TOMBOLA!"}
+                  <span className="spin-button-text">
+                    {isSpinning ? "¡Girando la Magia!" : "¡GIRAR TOMBOLA!"}
+                  </span>
                 </div>
               </button>
 
               {participants.length < 2 && (
-                <p className="text-sm text-gray-500 mt-2">
+                <p className="text-center text-muted mt-2 small">
                   Necesitas al menos 2 participantes
                 </p>
               )}
 
-              <p className="text-xs text-gray-400 mt-2">
+              <p className="text-center text-muted mt-2 small">
                 Presiona ESPACIO para girar rápidamente
               </p>
 
               <button
                 onClick={resetGame}
                 disabled={isSpinning}
-                className="mt-4 px-4 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
+                className="btn btn-outline-danger btn-sm d-flex align-items-center gap-2 mx-auto mt-3 reset-button"
               >
-                <RotateCcw className="w-4 h-4" />
+                <RotateCcw className="reset-icon" />
                 Reiniciar Todo
               </button>
             </div>
           </div>
 
-          {/* Columna Derecha - Participantes y Ganadores */}
-          <div className="space-y-6">
-            {/* Panel de Participantes */}
-            <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-2xl">
-              <div className="flex items-center gap-3 mb-6">
-                <Users className="w-6 h-6 text-blue-600" />
-                <h2 className="text-2xl font-bold text-gray-800">
-                  Participantes
-                </h2>
-                <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm font-medium">
+          {/* Participants and Winners Column */}
+          <div className="col-12 col-lg-6 order-1 order-lg-2">
+            {/* Participants Panel */}
+            <div className="side-panel participants-panel mb-3 mb-lg-4">
+              <div className="side-panel-header">
+                <Users className="side-panel-icon text-primary" />
+                <h2 className="side-panel-title">Participantes</h2>
+                <span className="badge bg-primary rounded-pill">
                   {participants.length}
                 </span>
               </div>
 
-              <div className="mb-6">
-                <div className="flex gap-2">
+              <div className="participants-input mb-3">
+                <div className="input-group">
                   <input
                     type="text"
                     value={newParticipant}
                     onChange={(e) => setNewParticipant(e.target.value)}
                     onKeyPress={handleKeyPress}
                     placeholder="Nombre del participante"
-                    className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors"
+                    className="form-control participant-input"
                     disabled={isSpinning}
                   />
                   <button
                     onClick={addParticipant}
                     disabled={!newParticipant.trim() || isSpinning}
-                    className="px-4 py-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white rounded-xl transition-colors duration-200 flex-shrink-0"
+                    className="btn btn-success add-participant-btn"
+                    type="button"
                   >
-                    <Plus className="w-5 h-5" />
+                    <Plus className="add-icon" />
                   </button>
                 </div>
               </div>
 
-              <div className="space-y-2 max-h-64 overflow-y-auto">
+              <div className="participants-list">
                 {participants.map((participant) => (
-                  <div
-                    key={participant.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors group"
-                  >
-                    <div className="flex items-center gap-3">
+                  <div key={participant.id} className="participant-item">
+                    <div className="d-flex align-items-center gap-3">
                       <div
-                        className="w-4 h-4 rounded-full border-2 border-white shadow-sm"
+                        className="participant-color"
                         style={{ backgroundColor: participant.color }}
                       />
-                      <span className="font-medium text-gray-800">
+                      <span className="participant-name">
                         {participant.name}
                       </span>
                     </div>
                     <button
                       onClick={() => removeParticipant(participant.id)}
                       disabled={isSpinning}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-red-500 hover:text-red-700 transition-all duration-200 disabled:opacity-0"
+                      className="btn btn-sm btn-outline-danger remove-btn"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="remove-icon" />
                     </button>
                   </div>
                 ))}
                 {participants.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>No hay participantes aún</p>
-                    <p className="text-sm">Agrega al menos 2 para comenzar</p>
+                  <div className="empty-state">
+                    <Users className="empty-icon" />
+                    <p className="empty-title">No hay participantes aún</p>
+                    <p className="empty-subtitle">
+                      Agrega al menos 2 para comenzar
+                    </p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Panel de Ganadores */}
-            <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-2xl">
-              <div className="flex items-center gap-3 mb-6">
-                <Trophy className="w-6 h-6 text-yellow-600" />
-                <h2 className="text-2xl font-bold text-gray-800">Ganadores</h2>
-                <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-sm font-medium">
+            {/* Winners Panel */}
+            <div className="side-panel winners-panel">
+              <div className="side-panel-header">
+                <Trophy className="side-panel-icon text-warning" />
+                <h2 className="side-panel-title">Ganadores</h2>
+                <span className="badge bg-warning rounded-pill">
                   {winners.length}
                 </span>
               </div>
 
-              <div className="space-y-3 max-h-80 overflow-y-auto">
+              <div className="winners-list">
                 {winners.map((winner, index) => (
-                  <div
-                    key={`${winner.id}-${index}`}
-                    className="flex items-center gap-3 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl border border-yellow-200 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex-shrink-0">
-                      <div className="w-8 h-8 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                        {winners.length - index}
-                      </div>
+                  <div key={`${winner.id}-${index}`} className="winner-item">
+                    <div className="winner-position">
+                      {winners.length - index}
                     </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-gray-800">{winner.name}</p>
-                      <div className="flex items-center gap-2 mt-1">
+                    <div className="winner-info">
+                      <p className="winner-item-name">{winner.name}</p>
+                      <div className="d-flex align-items-center gap-2 mt-1">
                         <div
-                          className="w-3 h-3 rounded-full border border-white shadow-sm"
+                          className="winner-item-color"
                           style={{ backgroundColor: winner.color }}
                         />
-                        <span className="text-xs text-gray-500">
+                        <span className="winner-round">
                           Ronda {winners.length - index}
                         </span>
                       </div>
                     </div>
-                    <Trophy className="w-5 h-5 text-yellow-500" />
+                    <Trophy className="winner-item-trophy" />
                   </div>
                 ))}
                 {winners.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    <Trophy className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>Aún no hay ganadores</p>
-                    <p className="text-sm">¡Gira la tombola para comenzar!</p>
+                  <div className="empty-state">
+                    <Trophy className="empty-icon" />
+                    <p className="empty-title">Aún no hay ganadores</p>
+                    <p className="empty-subtitle">
+                      ¡Gira la tombola para comenzar!
+                    </p>
                   </div>
                 )}
               </div>
@@ -495,11 +476,16 @@ function App() {
           </div>
         </div>
 
-        <div className="mt-8 text-center text-white/80">
-          <p className="text-sm">
-            💡 <strong>Consejo:</strong> Puedes usar la barra espaciadora para
-            girar rápidamente
-          </p>
+        {/* Footer Tip */}
+        <div className="row mt-4 mt-lg-5">
+          <div className="col-12">
+            <div className="text-center footer-tip">
+              <p>
+                💡 <strong>Consejo:</strong> Puedes usar la barra espaciadora
+                para girar rápidamente
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -699,7 +685,6 @@ function App() {
         Tu navegador no soporta audio.
       </audio>
 
-      {/* Audio element para el sonido de felicitación */}
       <audio
         ref={congratulationsAudioRef}
         preload="auto"
