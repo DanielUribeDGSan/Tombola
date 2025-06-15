@@ -144,14 +144,6 @@ function App() {
     loadBoletos();
   }, []);
 
-  // Seleccionar primera categoría cuando se cargan las categorías
-  useEffect(() => {
-    if (Object.keys(categories).length > 0 && !selectedCategory) {
-      const firstCategory = Object.keys(categories)[0];
-      setSelectedCategory(firstCategory);
-    }
-  }, [categories, selectedCategory]);
-
   // Función para cargar participantes de una categoría
   const loadParticipantsFromCategory = useCallback(
     (categoryId: string) => {
