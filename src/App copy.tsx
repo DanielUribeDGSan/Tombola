@@ -15,10 +15,6 @@ import {
   Sparkles,
   Star,
 } from "lucide-react";
-import Lottie from "lottie-react";
-import confettiAnimation from "./assets/confeti/confeti.json";
-import AudioRuleta from "./assets/mp3/ruleta1.mp3";
-import AudioFelicitacion from "./assets/mp3/congratulations.mp3";
 
 interface Participant {
   id: string;
@@ -413,14 +409,17 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-400 via-red-500 to-purple-600 p-2 p-md-4 roulette-container">
-      {/* Lottie Confetti Animation - CORREGIDO */}
+      {/* Confetti Animation */}
       {showConfetti && (
         <div className="confetti-overlay">
-          <Lottie
-            animationData={confettiAnimation}
-            style={{ width: "100%", height: "100%" }}
-            loop={false}
-            autoplay={true}
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              background:
+                'url(\'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="2" fill="%23ff6b35"/></svg>\') repeat',
+              animation: "confetti-fall 3s linear infinite",
+            }}
           />
         </div>
       )}
@@ -764,7 +763,7 @@ function App() {
 
       {/* Audio Elements */}
       <audio ref={audioRef} preload="auto" style={{ display: "none" }} loop>
-        <source src={AudioRuleta} type="audio/mpeg" />
+        <source src="/assets/mp3/ruleta1.mp3" type="audio/mpeg" />
         <source src="/assets/ruleta1.wav" type="audio/wav" />
         Tu navegador no soporta audio.
       </audio>
@@ -774,7 +773,7 @@ function App() {
         preload="auto"
         style={{ display: "none" }}
       >
-        <source src={AudioFelicitacion} type="audio/mpeg" />
+        <source src="/assets/mp3/congratulations.mp3" type="audio/mpeg" />
         <source src="/assets/mp3/congratulations.wav" type="audio/wav" />
         Tu navegador no soporta audio.
       </audio>
@@ -811,7 +810,7 @@ function App() {
           min-height: 100vh;
         }
 
-        /* CONFETTI CORREGIDO - Importante que no oculte el contenido */
+        /* CONFETTI */
         .confetti-overlay {
           position: fixed;
           top: 0;
@@ -819,10 +818,16 @@ function App() {
           width: 100vw;
           height: 100vh;
           pointer-events: none;
-          z-index: 1000; /* Reducido de 9999 a 1000 */
+          z-index: 1000;
           display: flex;
           align-items: center;
           justify-content: center;
+        }
+
+        @keyframes confetti-fall {
+          to {
+            transform: translateY(100vh) rotate(720deg);
+          }
         }
 
         /* Tombola responsive */
