@@ -19,6 +19,7 @@ import Lottie from "lottie-react";
 import confettiAnimation from "./assets/confeti/confeti.json";
 import AudioRuleta from "./assets/mp3/ruleta1.mp3";
 import AudioFelicitacion from "./assets/mp3/congratulations.mp3";
+
 interface Participant {
   id: string;
   name: string;
@@ -211,51 +212,8 @@ function App() {
     };
   }, []);
 
-  const confettiElements = useMemo(() => {
-    if (!showConfetti) return null;
-
-    const confettiArray = [];
-    const colors = [
-      "#FFD700",
-      "#FF6B6B",
-      "#4ECDC4",
-      "#45B7D1",
-      "#96CEB4",
-      "#FECA57",
-      "#FF9FF3",
-      "#54A0FF",
-    ];
-    const shapes = ["✨", "🌟", "💫", "🎈"];
-
-    // Confetti complementario más ligero para acompañar a Lottie
-    for (let i = 0; i < 20; i++) {
-      confettiArray.push(
-        <div
-          key={`complement-${i}`}
-          className="fixed pointer-events-none animate-confetti-fall"
-          style={{
-            left: `${Math.random() * 100}%`,
-            top: "-20px",
-            fontSize: `${16 + Math.random() * 12}px`,
-            color: colors[Math.floor(Math.random() * colors.length)],
-            animationDelay: `${Math.random() * 3}s`,
-            animationDuration: `${4 + Math.random() * 2}s`,
-            zIndex: 45, // Menor que Lottie
-            transform: `rotate(${Math.random() * 360}deg)`,
-          }}
-        >
-          {shapes[Math.floor(Math.random() * shapes.length)]}
-        </div>
-      );
-    }
-
-    return confettiArray;
-  }, [showConfetti]);
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-400 via-red-500 to-purple-600 p-4">
-      {confettiElements}
-
       {/* Lottie Confetti Animation */}
       {showConfetti && (
         <div className="fixed inset-0 pointer-events-none z-50 flex items-center justify-center">
@@ -734,6 +692,7 @@ function App() {
         }
       `}</style>
 
+      {/* Audio element para el sonido de la ruleta */}
       <audio ref={audioRef} preload="auto" style={{ display: "none" }} loop>
         <source src={AudioRuleta} type="audio/mpeg" />
         <source src="/assets/ruleta1.wav" type="audio/wav" />
