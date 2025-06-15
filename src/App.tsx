@@ -385,7 +385,7 @@ function App() {
       tombolaRef.current.style.transition = `transform ${SPIN_DURATION}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`;
     }
 
-    setTimeout(() => {
+    setTimeout(async () => {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
@@ -414,12 +414,39 @@ function App() {
         tombolaRef.current.style.transition = "";
       }
 
+      // Recargar datos del servidor después del ganador (solo en modo boletos)
+      if (gameMode === "boletos") {
+        try {
+          await loadBoletos();
+          // Recargar participantes de la categoría actual después de actualizar
+          if (selectedCategory && categories[selectedCategory]) {
+            setTimeout(() => {
+              loadParticipantsFromCategory(selectedCategory);
+            }, 100);
+          }
+        } catch (error) {
+          console.error(
+            "Error al recargar boletos después del ganador:",
+            error
+          );
+        }
+      }
+
       setTimeout(() => {
         setShowConfetti(false);
         setWinnerBallAnimation(false);
       }, 5000);
     }, SPIN_DURATION);
-  }, [participants, isSpinning, SPIN_DURATION]);
+  }, [
+    participants,
+    isSpinning,
+    SPIN_DURATION,
+    gameMode,
+    loadBoletos,
+    selectedCategory,
+    categories,
+    loadParticipantsFromCategory,
+  ]);
 
   const resetGame = useCallback(() => {
     if (!isSpinning) {
