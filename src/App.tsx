@@ -14,11 +14,15 @@ import {
   Users,
   Sparkles,
   Star,
+  Download,
+  RefreshCw,
+  List,
 } from "lucide-react";
 import Lottie from "lottie-react";
 import confettiAnimation from "./assets/confeti/confeti.json";
 import AudioRuleta from "./assets/mp3/ruleta1.mp3";
 import AudioFelicitacion from "./assets/mp3/congratulations.mp3";
+import { boletosService, type Boleto } from "./api/fetch";
 
 interface Participant {
   id: string;
@@ -37,14 +41,21 @@ interface Ball {
   name: string;
 }
 
+interface CategoryData {
+  name: string;
+  boletos: Boleto[];
+  participants: Participant[];
+}
+
 function App() {
   const SPIN_DURATION = 3000;
-  const TOMBOLA_RADIUS = 180; // Radio en pixels para el área de la tombola
-  const BALL_RADIUS = 18; // Bolas un poco más pequeñas para más espacio
-  const GRAVITY = 0.15; // Reducido para más flotación
-  const FRICTION = 0.985; // Menos fricción para más movimiento
-  const BOUNCE_DAMPING = 0.9; // Menos amortiguación para más rebotes
+  const TOMBOLA_RADIUS = 180;
+  const BALL_RADIUS = 18;
+  const GRAVITY = 0.15;
+  const FRICTION = 0.985;
+  const BOUNCE_DAMPING = 0.9;
 
+  // Estados existentes
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [newParticipant, setNewParticipant] = useState("");
   const [isSpinning, setIsSpinning] = useState(false);
@@ -53,6 +64,15 @@ function App() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [winnerBallAnimation, setWinnerBallAnimation] = useState(false);
   const [balls, setBalls] = useState<Ball[]>([]);
+
+  // Nuevos estados para boletos
+  const [categories, setCategories] = useState<Record<string, CategoryData>>(
+    {}
+  );
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [loadingBoletos, setLoadingBoletos] = useState(false);
+  const [boletosError, setBoletosError] = useState<string>("");
+  const [gameMode, setGameMode] = useState<"manual" | "boletos">("manual");
 
   const tombolaRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -73,7 +93,78 @@ function App() {
     "#F43F5E",
   ];
 
-  // Calcular posiciones iniciales (como antes, pero para inicializar bolas)
+  // Función para convertir boletos a participantes
+  const convertBoletosToParticipants = useCallback(
+    (boletos: Boleto[]): Participant[] => {
+      return boletos
+        .filter((boleto) => boleto.activo === 1)
+        .map((boleto, index) => ({
+          id: boleto.numero_boleto,
+          name: boleto.nombre_usuario,
+          color: colors[index % colors.length],
+        }));
+    },
+    [colors]
+  );
+
+  // Cargar boletos desde la API
+  const loadBoletos = useCallback(async () => {
+    setLoadingBoletos(true);
+    setBoletosError("");
+
+    try {
+      const response = await boletosService.fetchBoletos();
+
+      if (response.success && response.data) {
+        const categoriesData: Record<string, CategoryData> = {};
+
+        Object.entries(response.data).forEach(([categoryId, boletos]) => {
+          const participants = convertBoletosToParticipants(boletos);
+          categoriesData[categoryId] = {
+            name: `Categoría ${categoryId}`,
+            boletos,
+            participants,
+          };
+        });
+
+        setCategories(categoriesData);
+      } else {
+        setBoletosError(response.error || "Error al cargar boletos");
+      }
+    } catch (error) {
+      setBoletosError("Error de conexión al cargar boletos");
+      console.error("Error loading boletos:", error);
+    } finally {
+      setLoadingBoletos(false);
+    }
+  }, [convertBoletosToParticipants]);
+
+  // Cargar boletos al montar el componente
+  useEffect(() => {
+    loadBoletos();
+  }, []);
+
+  // Seleccionar primera categoría cuando se cargan las categorías
+  useEffect(() => {
+    if (Object.keys(categories).length > 0 && !selectedCategory) {
+      const firstCategory = Object.keys(categories)[0];
+      setSelectedCategory(firstCategory);
+    }
+  }, [categories, selectedCategory]);
+
+  // Función para cargar participantes de una categoría
+  const loadParticipantsFromCategory = useCallback(
+    (categoryId: string) => {
+      if (categories[categoryId] && !isSpinning) {
+        setParticipants(categories[categoryId].participants);
+        setSelectedCategory(categoryId);
+        setCurrentWinner(null);
+      }
+    },
+    [categories, isSpinning]
+  );
+
+  // Calcular posiciones iniciales
   const ballPositions = useMemo(() => {
     return participants.map((_, index) => {
       const angle = (index * 137.5) % 360;
@@ -105,7 +196,6 @@ function App() {
   const initializeBalls = useCallback(() => {
     const newBalls: Ball[] = participants.map((participant, index) => {
       const position = ballPositions[index];
-      // Convertir porcentajes a pixeles dentro del área de la tombola
       const x = (position.x / 100) * (TOMBOLA_RADIUS * 2);
       const y = (position.y / 100) * (TOMBOLA_RADIUS * 2);
 
@@ -113,7 +203,7 @@ function App() {
         id: participant.id,
         x: x,
         y: y,
-        vx: (Math.random() - 0.5) * 2, // Velocidad inicial aleatoria
+        vx: (Math.random() - 0.5) * 2,
         vy: (Math.random() - 0.5) * 2,
         radius: BALL_RADIUS,
         color: participant.color,
@@ -135,17 +225,15 @@ function App() {
         const distance = Math.sqrt(dx * dx + dy * dy);
 
         if (distance < ball1.radius + ball2.radius) {
-          // Separar las bolas más agresivamente
           const overlap = ball1.radius + ball2.radius - distance;
           const separateX = (dx / distance) * (overlap / 2);
           const separateY = (dy / distance) * (overlap / 2);
 
-          ball1.x -= separateX * 1.5; // Más separación
+          ball1.x -= separateX * 1.5;
           ball1.y -= separateY * 1.5;
           ball2.x += separateX * 1.5;
           ball2.y += separateY * 1.5;
 
-          // Intercambiar velocidades con más energía
           const tempVx = ball1.vx;
           const tempVy = ball1.vy;
           ball1.vx = ball2.vx * BOUNCE_DAMPING + (Math.random() - 0.5) * 2;
@@ -165,23 +253,19 @@ function App() {
       const newBalls = prevBalls.map((ball) => {
         let newBall = { ...ball };
 
-        // Aplicar fuerza centrífuga durante el giro
         const centerX = TOMBOLA_RADIUS;
         const centerY = TOMBOLA_RADIUS;
-        const centrifugalForce = 0.8; // Aumentado para más movimiento
+        const centrifugalForce = 0.8;
 
         const dxFromCenter = newBall.x - centerX;
         const dyFromCenter = newBall.y - centerY;
 
-        // Fuerza centrífuga más fuerte
         newBall.vx += (dxFromCenter / TOMBOLA_RADIUS) * centrifugalForce;
         newBall.vy += (dyFromCenter / TOMBOLA_RADIUS) * centrifugalForce;
 
-        // Mucha más aleatoriedad para separar las bolas
         newBall.vx += (Math.random() - 0.5) * 1.5;
         newBall.vy += (Math.random() - 0.5) * 1.5;
 
-        // Fuerza de separación entre bolas (anti-agrupamiento)
         prevBalls.forEach((otherBall) => {
           if (otherBall.id !== ball.id) {
             const dx = newBall.x - otherBall.x;
@@ -189,7 +273,6 @@ function App() {
             const distance = Math.sqrt(dx * dx + dy * dy);
 
             if (distance < 80) {
-              // Fuerza de separación a distancia
               const separationForce = 0.3;
               newBall.vx += (dx / distance) * separationForce;
               newBall.vy += (dy / distance) * separationForce;
@@ -197,30 +280,24 @@ function App() {
           }
         });
 
-        // Aplicar gravedad
         newBall.vy += GRAVITY;
 
-        // Aplicar fricción
         newBall.vx *= FRICTION;
         newBall.vy *= FRICTION;
 
-        // Actualizar posición
         newBall.x += newBall.vx;
         newBall.y += newBall.vy;
 
-        // Detectar colisiones con las paredes de la tombola (circular)
         const distanceFromCenter = Math.sqrt(
           dxFromCenter * dxFromCenter + dyFromCenter * dyFromCenter
         );
-        const maxDistance = TOMBOLA_RADIUS - newBall.radius - 8; // 8px por el borde
+        const maxDistance = TOMBOLA_RADIUS - newBall.radius - 8;
 
         if (distanceFromCenter > maxDistance) {
-          // Rebote en la pared circular con más energía
           const angle = Math.atan2(dyFromCenter, dxFromCenter);
           newBall.x = centerX + Math.cos(angle) * maxDistance;
           newBall.y = centerY + Math.sin(angle) * maxDistance;
 
-          // Reflejar velocidad con más energía
           const normalX = Math.cos(angle);
           const normalY = Math.sin(angle);
           const dotProduct = newBall.vx * normalX + newBall.vy * normalY;
@@ -228,7 +305,6 @@ function App() {
           newBall.vx = (newBall.vx - 2 * dotProduct * normalX) * BOUNCE_DAMPING;
           newBall.vy = (newBall.vy - 2 * dotProduct * normalY) * BOUNCE_DAMPING;
 
-          // Agregar energía aleatoria en el rebote
           newBall.vx += (Math.random() - 0.5) * 3;
           newBall.vy += (Math.random() - 0.5) * 3;
         }
@@ -236,9 +312,7 @@ function App() {
         return newBall;
       });
 
-      // Manejar colisiones entre bolas
       handleBallCollisions(newBalls);
-
       return newBalls;
     });
   }, []);
@@ -271,7 +345,7 @@ function App() {
   }, [participants, initializeBalls, isSpinning]);
 
   const addParticipant = useCallback(() => {
-    if (newParticipant.trim() && !isSpinning) {
+    if (newParticipant.trim() && !isSpinning && gameMode === "manual") {
       const participant: Participant = {
         id: Date.now().toString(),
         name: newParticipant.trim(),
@@ -280,15 +354,15 @@ function App() {
       setParticipants((prev) => [...prev, participant]);
       setNewParticipant("");
     }
-  }, [newParticipant, isSpinning, participants.length, colors]);
+  }, [newParticipant, isSpinning, participants.length, colors, gameMode]);
 
   const removeParticipant = useCallback(
     (id: string) => {
-      if (!isSpinning) {
+      if (!isSpinning && gameMode === "manual") {
         setParticipants((prev) => prev.filter((p) => p.id !== id));
       }
     },
-    [isSpinning]
+    [isSpinning, gameMode]
   );
 
   const spinTombola = useCallback(() => {
@@ -306,11 +380,10 @@ function App() {
     setCurrentWinner(null);
     setWinnerBallAnimation(false);
 
-    // Dar impulso inicial a las bolas
     setBalls((prevBalls) =>
       prevBalls.map((ball, index) => ({
         ...ball,
-        vx: (Math.random() - 0.5) * 15 + Math.cos(index * 2) * 5, // Más impulso y dirección variada
+        vx: (Math.random() - 0.5) * 15 + Math.cos(index * 2) * 5,
         vy: (Math.random() - 0.5) * 15 + Math.sin(index * 2) * 5,
       }))
     );
@@ -373,6 +446,7 @@ function App() {
       setShowConfetti(false);
       setWinnerBallAnimation(false);
       setBalls([]);
+      setSelectedCategory("");
       isSpinningRef.current = false;
     }
   }, [isSpinning]);
@@ -413,7 +487,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-400 via-red-500 to-purple-600 p-2 p-md-4 roulette-container">
-      {/* Lottie Confetti Animation - CORREGIDO */}
+      {/* Lottie Confetti Animation */}
       {showConfetti && (
         <div className="confetti-overlay">
           <Lottie
@@ -432,11 +506,107 @@ function App() {
               🎊 TOMBOLA MÁGICA 🎊
             </h1>
             <p className="fs-5 fs-md-4 text-white-75 fw-medium mb-2">
-              ¡Agrega participantes y gira la tombola para elegir un ganador!
+              ¡Agrega participantes manualmente o carga desde boletos!
             </p>
             <p className="small text-white-50">
               ⏱️ Tiempo de giro: {SPIN_DURATION / 1000} segundos
             </p>
+          </div>
+
+          {/* Selector de modo de juego */}
+          <div className="row justify-content-center mb-4">
+            <div className="col-12 col-md-8 col-lg-6">
+              <div className="card shadow-lg border-0 rounded-4">
+                <div className="card-body p-3">
+                  <div className="d-flex gap-2 mb-3">
+                    <button
+                      onClick={() => setGameMode("manual")}
+                      disabled={isSpinning}
+                      className={`btn flex-fill ${
+                        gameMode === "manual"
+                          ? "btn-primary"
+                          : "btn-outline-primary"
+                      }`}
+                    >
+                      <Plus size={16} className="me-2" />
+                      Manual
+                    </button>
+                    <button
+                      onClick={() => setGameMode("boletos")}
+                      disabled={isSpinning}
+                      className={`btn flex-fill ${
+                        gameMode === "boletos"
+                          ? "btn-primary"
+                          : "btn-outline-primary"
+                      }`}
+                    >
+                      <List size={16} className="me-2" />
+                      Boletos
+                    </button>
+                    <button
+                      onClick={loadBoletos}
+                      disabled={loadingBoletos || isSpinning}
+                      className="btn btn-outline-secondary"
+                      title="Recargar boletos"
+                    >
+                      <RefreshCw
+                        size={16}
+                        className={loadingBoletos ? "animate-spin" : ""}
+                      />
+                    </button>
+                  </div>
+
+                  {gameMode === "boletos" && (
+                    <div>
+                      {loadingBoletos && (
+                        <div className="text-center py-3">
+                          <div
+                            className="spinner-border spinner-border-sm me-2"
+                            role="status"
+                          ></div>
+                          Cargando boletos...
+                        </div>
+                      )}
+
+                      {boletosError && (
+                        <div className="alert alert-danger small mb-3">
+                          {boletosError}
+                        </div>
+                      )}
+
+                      {Object.keys(categories).length > 0 && (
+                        <div>
+                          <label className="form-label small fw-medium">
+                            Seleccionar categoría:
+                          </label>
+                          <select
+                            value={selectedCategory}
+                            onChange={(e) =>
+                              loadParticipantsFromCategory(e.target.value)
+                            }
+                            disabled={isSpinning || loadingBoletos}
+                            className="form-select form-select-sm"
+                          >
+                            <option value="">
+                              -- Selecciona una categoría --
+                            </option>
+                            {Object.entries(categories).map(
+                              ([id, category]) => (
+                                <option key={id} value={id}>
+                                  {category.name} (
+                                  {category.participants.length} participantes
+                                  activos)
+                                </option>
+                              )
+                            )}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="row g-3 g-lg-4">
@@ -462,7 +632,6 @@ function App() {
                       }}
                     >
                       <div className="position-absolute tombola-inner">
-                        {/* Mostrar bolas con física durante el giro, posiciones normales cuando no */}
                         {(isSpinning
                           ? balls
                           : participants.map((participant, index) => {
@@ -553,6 +722,11 @@ function App() {
                       <p className="fs-3 fs-md-2 fw-bold mb-2">
                         {currentWinner.name}
                       </p>
+                      {gameMode === "boletos" && (
+                        <p className="small text-muted mb-2">
+                          Boleto: {currentWinner.id}
+                        </p>
+                      )}
                       <div className="d-flex align-items-center justify-content-center gap-2 fs-6 fs-md-5">
                         <span>¡Eres el ganador!</span>
                         <div
@@ -626,29 +800,36 @@ function App() {
                     <span className="badge bg-primary rounded-pill">
                       {participants.length}
                     </span>
+                    {gameMode === "boletos" && selectedCategory && (
+                      <span className="badge bg-info rounded-pill small">
+                        Cat. {selectedCategory}
+                      </span>
+                    )}
                   </div>
 
-                  <div className="mb-3 mb-md-4">
-                    <div className="input-group">
-                      <input
-                        type="text"
-                        value={newParticipant}
-                        onChange={(e) => setNewParticipant(e.target.value)}
-                        onKeyPress={handleKeyPress}
-                        placeholder="Nombre del participante"
-                        className="form-control border-2 rounded-start-3 py-2 py-md-3"
-                        disabled={isSpinning}
-                      />
-                      <button
-                        onClick={addParticipant}
-                        disabled={!newParticipant.trim() || isSpinning}
-                        className="btn btn-success rounded-end-3"
-                        type="button"
-                      >
-                        <Plus size={window.innerWidth < 576 ? 16 : 20} />
-                      </button>
+                  {gameMode === "manual" && (
+                    <div className="mb-3 mb-md-4">
+                      <div className="input-group">
+                        <input
+                          type="text"
+                          value={newParticipant}
+                          onChange={(e) => setNewParticipant(e.target.value)}
+                          onKeyPress={handleKeyPress}
+                          placeholder="Nombre del participante"
+                          className="form-control border-2 rounded-start-3 py-2 py-md-3"
+                          disabled={isSpinning}
+                        />
+                        <button
+                          onClick={addParticipant}
+                          disabled={!newParticipant.trim() || isSpinning}
+                          className="btn btn-success rounded-end-3"
+                          type="button"
+                        >
+                          <Plus size={window.innerWidth < 576 ? 16 : 20} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="participants-list">
                     {participants.map((participant) => (
@@ -661,17 +842,26 @@ function App() {
                             className="rounded-circle border border-2 border-white shadow-sm participant-color"
                             style={{ backgroundColor: participant.color }}
                           />
-                          <span className="fw-medium text-dark participant-name">
-                            {participant.name}
-                          </span>
+                          <div className="flex-grow-1">
+                            <span className="fw-medium text-dark participant-name d-block">
+                              {participant.name}
+                            </span>
+                            {gameMode === "boletos" && (
+                              <small className="text-muted">
+                                {participant.id}
+                              </small>
+                            )}
+                          </div>
                         </div>
-                        <button
-                          onClick={() => removeParticipant(participant.id)}
-                          disabled={isSpinning}
-                          className="btn btn-sm btn-outline-danger remove-btn"
-                        >
-                          <Trash2 size={window.innerWidth < 576 ? 14 : 16} />
-                        </button>
+                        {gameMode === "manual" && (
+                          <button
+                            onClick={() => removeParticipant(participant.id)}
+                            disabled={isSpinning}
+                            className="btn btn-sm btn-outline-danger remove-btn"
+                          >
+                            <Trash2 size={window.innerWidth < 576 ? 14 : 16} />
+                          </button>
+                        )}
                       </div>
                     ))}
                     {participants.length === 0 && (
@@ -682,7 +872,9 @@ function App() {
                         />
                         <p className="mb-1">No hay participantes aún</p>
                         <p className="small mb-0">
-                          Agrega al menos 2 para comenzar
+                          {gameMode === "manual"
+                            ? "Agrega al menos 2 para comenzar"
+                            : "Selecciona una categoría de boletos"}
                         </p>
                       </div>
                     )}
@@ -727,6 +919,11 @@ function App() {
                             <span className="small text-muted">
                               Ronda {winners.length - index}
                             </span>
+                            {gameMode === "boletos" && (
+                              <span className="small text-muted">
+                                • {winner.id}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <Trophy
@@ -819,7 +1016,7 @@ function App() {
           width: 100vw;
           height: 100vh;
           pointer-events: none;
-          z-index: 1000; /* Reducido de 9999 a 1000 */
+          z-index: 1000;
           display: flex;
           align-items: center;
           justify-content: center;
