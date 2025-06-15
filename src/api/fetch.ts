@@ -16,6 +16,25 @@ export interface ApiResponse {
   error?: string;
 }
 
+export interface SeleccionarBoletoRequest {
+  nivel: number;
+}
+
+export interface SeleccionarBoletoResponse {
+  success: boolean;
+  message: string;
+  boleto: string;
+  nivel: number;
+  usuario: string;
+  clave: string;
+}
+
+export interface SeleccionarBoletoApiResponse {
+  success: boolean;
+  data?: SeleccionarBoletoResponse;
+  error?: string;
+}
+
 class BoletosService {
   private readonly baseUrl = "https://www.aspid50.com/api";
 
@@ -50,6 +69,58 @@ class BoletosService {
       console.error("Error al obtener boletos:", error);
 
       let errorMessage = "Error desconocido al cargar boletos";
+
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        errorMessage = "Sin conexión a internet o servidor no disponible";
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  }
+
+  /**
+   * Selecciona un boleto ganador desde el servidor
+   * @param nivel - Nivel/categoría del boleto a seleccionar (1, 2, 3, etc.)
+   * @returns Promise con la respuesta del boleto seleccionado
+   */
+  async seleccionarBoleto(
+    nivel: number
+  ): Promise<SeleccionarBoletoApiResponse> {
+    try {
+      const requestBody: SeleccionarBoletoRequest = {
+        nivel,
+      };
+
+      const response = await fetch(`${this.baseUrl}/boletos/seleccionar`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+        signal: AbortSignal.timeout(10000), // 10 segundos timeout
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `Error HTTP: ${response.status} - ${response.statusText}`
+        );
+      }
+
+      const data: SeleccionarBoletoResponse = await response.json();
+
+      return {
+        success: true,
+        data,
+      };
+    } catch (error) {
+      console.error("Error al seleccionar boleto:", error);
+
+      let errorMessage = "Error desconocido al seleccionar boleto";
 
       if (error instanceof TypeError && error.message.includes("fetch")) {
         errorMessage = "Sin conexión a internet o servidor no disponible";
