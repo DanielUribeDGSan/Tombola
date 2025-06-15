@@ -16,9 +16,9 @@ import {
   Star,
 } from "lucide-react";
 
-// Importación de archivos de audio
-import Ruleta1Mp3 from "./assets/mp3/ruleta1.mp3";
-import CongratulationsMp3 from "./assets/mp3/congratulations.mp3";
+import AudioRuleta from "./assets/mp3/ruleta1.mp3";
+
+import AudioFelicitacion from "./assets/mp3/congratulations.mp3";
 
 interface Participant {
   id: string;
@@ -27,8 +27,7 @@ interface Participant {
 }
 
 function App() {
-  // 🎛️ VARIABLE CONFIGURABLE PARA EL TIEMPO DE GIRO (en milisegundos)
-  const SPIN_DURATION = 3000; // Cambia este valor para modificar el tiempo de giro
+  const SPIN_DURATION = 3000;
 
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [newParticipant, setNewParticipant] = useState("");
@@ -54,18 +53,17 @@ function App() {
     "#F43F5E",
   ];
 
-  // Memorizar posiciones de las bolas para evitar recálculos
   const ballPositions = useMemo(() => {
     return participants.map((_, index) => {
       const angle = (index * 137.5) % 360;
-      const radius = 15 + (index % 3) * 8;
+      const radius = 20 + (index % 3) * 12;
       const centerX = 50;
       const centerY = 50;
 
       const x = centerX + Math.cos((angle * Math.PI) / 180) * radius;
       const y = centerY + Math.sin((angle * Math.PI) / 180) * radius;
 
-      const maxRadius = 35;
+      const maxRadius = 42;
       const distanceFromCenter = Math.sqrt(
         (x - centerX) ** 2 + (y - centerY) ** 2
       );
@@ -106,9 +104,9 @@ function App() {
   const spinTombola = useCallback(() => {
     if (participants.length < 2 || isSpinning) return;
 
-    // Reproducir sonido con loop
+    // Reproducir sonido de ruleta
     if (audioRef.current) {
-      audioRef.current.currentTime = 0; // Reiniciar audio si ya está reproduciéndose
+      audioRef.current.currentTime = 0;
       audioRef.current.play().catch((error) => {
         console.log("No se pudo reproducir el audio:", error);
       });
@@ -118,13 +116,9 @@ function App() {
     setCurrentWinner(null);
     setWinnerBallAnimation(false);
 
-    // Usar la variable configurable para la duración
-    const duration = SPIN_DURATION;
-
-    // Animación de la tombola usando la duración configurable
     if (tombolaRef.current) {
       tombolaRef.current.style.transform = "rotate(1080deg)";
-      tombolaRef.current.style.transition = `transform ${duration}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`;
+      tombolaRef.current.style.transition = `transform ${SPIN_DURATION}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`;
     }
 
     setTimeout(() => {
@@ -156,12 +150,11 @@ function App() {
         tombolaRef.current.style.transition = "";
       }
 
-      // Reducir tiempo de confetti
       setTimeout(() => {
         setShowConfetti(false);
         setWinnerBallAnimation(false);
       }, 2000);
-    }, duration); // Usar la duración configurable aquí también
+    }, SPIN_DURATION);
   }, [participants, isSpinning, SPIN_DURATION]);
 
   const resetGame = useCallback(() => {
@@ -219,20 +212,18 @@ function App() {
     };
   }, []);
 
-  // Confetti optimizado - menos partículas
   const confettiElements = useMemo(() => {
     if (!showConfetti) return null;
 
     return [...Array(30)].map((_, i) => (
       <div
         key={i}
-        className="fixed animate-confetti-fall pointer-events-none"
+        className="fixed pointer-events-none animate-pulse"
         style={{
           left: `${Math.random() * 100}%`,
           top: "-20px",
           fontSize: `${12 + Math.random() * 16}px`,
           color: colors[Math.floor(Math.random() * colors.length)],
-          animationDelay: `${Math.random() * 1}s`,
           zIndex: 50,
         }}
       >
@@ -245,8 +236,7 @@ function App() {
     <div className="min-h-screen bg-gradient-to-br from-orange-400 via-red-500 to-purple-600 p-4">
       {confettiElements}
 
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
+      <div className="max-w-7xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-6xl font-bold text-white mb-4 drop-shadow-lg">
             🎊 TOMBOLA MÁGICA 🎊
@@ -254,15 +244,153 @@ function App() {
           <p className="text-xl text-white/90 font-medium">
             ¡Agrega participantes y gira la tombola para elegir un ganador!
           </p>
-          {/* Indicador del tiempo de giro configurado */}
           <p className="text-sm text-white/70 mt-2">
             ⏱️ Tiempo de giro: {SPIN_DURATION / 1000} segundos
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Left Panel - Participants */}
-          <div className="lg:col-span-1">
+        <div className="grid lg:grid-cols-2 gap-8">
+          {/* Columna Izquierda - Tombola Grande */}
+          <div className="flex items-center justify-center">
+            <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 shadow-2xl text-center w-full max-w-lg">
+              <div className="relative mb-8">
+                <div
+                  ref={tombolaRef}
+                  className="w-96 h-96 mx-auto relative overflow-hidden transition-transform duration-500"
+                  style={{
+                    background: "linear-gradient(145deg, #e2e8f0, #cbd5e1)",
+                    borderRadius: "50%",
+                    border: "16px solid #64748b",
+                    boxShadow:
+                      "inset 0 8px 16px rgba(0,0,0,0.2), 0 16px 64px rgba(0,0,0,0.3)",
+                  }}
+                >
+                  <div className="absolute inset-4 rounded-full">
+                    {participants.map((participant, index) => {
+                      const position = ballPositions[index];
+                      const isWinnerBall =
+                        currentWinner && participant.id === currentWinner.id;
+
+                      return (
+                        <div
+                          key={participant.id}
+                          className={`absolute w-10 h-10 rounded-full border-2 border-gray-700 shadow-lg transition-all duration-300 flex items-center justify-center ${
+                            isSpinning
+                              ? "animate-bounce"
+                              : isWinnerBall && winnerBallAnimation
+                              ? "animate-ping"
+                              : "animate-pulse"
+                          }`}
+                          style={{
+                            backgroundColor: participant.color,
+                            left: `${position.x}%`,
+                            top: `${position.y}%`,
+                            transform: `translate(-50%, -50%) ${
+                              isWinnerBall && winnerBallAnimation
+                                ? "scale(1.5)"
+                                : "scale(1)"
+                            }`,
+                            zIndex:
+                              isWinnerBall && winnerBallAnimation ? 10 : 1,
+                            boxShadow:
+                              isWinnerBall && winnerBallAnimation
+                                ? `0 0 25px ${participant.color}`
+                                : "0 5px 10px rgba(0,0,0,0.3)",
+                          }}
+                        >
+                          <div
+                            className="w-7 h-7 bg-white rounded-full flex items-center justify-center border border-gray-300"
+                            style={{
+                              boxShadow: "inset 0 1px 2px rgba(0,0,0,0.1)",
+                            }}
+                          >
+                            <span
+                              className="text-base font-bold text-gray-800"
+                              style={{ fontSize: "14px", lineHeight: "1" }}
+                            >
+                              {participant.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="absolute inset-1/2 transform -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full shadow-lg flex items-center justify-center z-20">
+                    <Sparkles
+                      className={`w-10 h-10 text-white ${
+                        isSpinning ? "animate-spin" : ""
+                      }`}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {currentWinner && (
+                <div className="mb-6 p-6 bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 rounded-2xl text-white animate-bounce">
+                  <div className="flex items-center justify-center gap-3 mb-3">
+                    <Trophy className="w-12 h-12" />
+                    <div className="text-4xl">🎉</div>
+                    <Trophy className="w-12 h-12" />
+                  </div>
+                  <h3 className="text-2xl font-bold mb-2">¡FELICITACIONES!</h3>
+                  <p className="text-3xl font-bold mb-2">
+                    {currentWinner.name}
+                  </p>
+                  <div className="flex items-center justify-center gap-2 text-lg">
+                    <span>¡Eres el ganador!</span>
+                    <div
+                      className="w-4 h-4 rounded-full border-2 border-white"
+                      style={{ backgroundColor: currentWinner.color }}
+                    />
+                  </div>
+                  <div className="mt-3 text-sm opacity-90">
+                    🌟 ¡Increíble suerte! 🌟
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={spinTombola}
+                disabled={participants.length < 2 || isSpinning}
+                className={`w-full py-4 px-6 rounded-2xl font-bold text-xl transition-all duration-300 ${
+                  participants.length >= 2 && !isSpinning
+                    ? "bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white transform hover:scale-105 shadow-lg"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                }`}
+              >
+                <div className="flex items-center justify-center gap-3">
+                  <Play
+                    className={`w-6 h-6 ${isSpinning ? "animate-spin" : ""}`}
+                  />
+                  {isSpinning ? "¡Girando la Magia!" : "¡GIRAR TOMBOLA!"}
+                </div>
+              </button>
+
+              {participants.length < 2 && (
+                <p className="text-sm text-gray-500 mt-2">
+                  Necesitas al menos 2 participantes
+                </p>
+              )}
+
+              <p className="text-xs text-gray-400 mt-2">
+                Presiona ESPACIO para girar rápidamente
+              </p>
+
+              <button
+                onClick={resetGame}
+                disabled={isSpinning}
+                className="mt-4 px-4 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Reiniciar Todo
+              </button>
+            </div>
+          </div>
+
+          {/* Columna Derecha - Participantes y Ganadores */}
+          <div className="space-y-6">
+            {/* Panel de Participantes */}
             <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-2xl">
               <div className="flex items-center gap-3 mb-6">
                 <Users className="w-6 h-6 text-blue-600" />
@@ -328,164 +456,8 @@ function App() {
                 )}
               </div>
             </div>
-          </div>
 
-          {/* Center Panel - Tombola */}
-          <div className="lg:col-span-1">
-            <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 shadow-2xl text-center">
-              <div className="relative mb-8">
-                <div
-                  ref={tombolaRef}
-                  className="w-48 h-48 mx-auto relative overflow-hidden transition-transform duration-500"
-                  style={{
-                    background: "linear-gradient(145deg, #e2e8f0, #cbd5e1)",
-                    borderRadius: "50%",
-                    border: "8px solid #64748b",
-                    boxShadow:
-                      "inset 0 4px 8px rgba(0,0,0,0.2), 0 8px 32px rgba(0,0,0,0.3)",
-                  }}
-                >
-                  <div className="absolute inset-2 rounded-full">
-                    {participants.map((participant, index) => {
-                      const position = ballPositions[index];
-                      const isWinnerBall =
-                        currentWinner && participant.id === currentWinner.id;
-
-                      return (
-                        <div
-                          key={participant.id}
-                          className={`absolute w-6 h-6 rounded-full border-2 border-gray-700 shadow-lg transition-all duration-300 flex items-center justify-center ${
-                            isSpinning
-                              ? "animate-bounce-crazy"
-                              : isWinnerBall && winnerBallAnimation
-                              ? "animate-winner-glow"
-                              : "animate-float"
-                          }`}
-                          style={{
-                            backgroundColor: participant.color,
-                            left: `${position.x}%`,
-                            top: `${position.y}%`,
-                            transform: `translate(-50%, -50%) ${
-                              isWinnerBall && winnerBallAnimation
-                                ? "scale(1.5)"
-                                : "scale(1)"
-                            }`,
-                            zIndex:
-                              isWinnerBall && winnerBallAnimation ? 10 : 1,
-                            boxShadow:
-                              isWinnerBall && winnerBallAnimation
-                                ? `0 0 15px ${participant.color}`
-                                : "0 3px 6px rgba(0,0,0,0.3)",
-                            animationDelay: `${index * 0.1}s`,
-                          }}
-                        >
-                          {/* Círculo blanco con la inicial */}
-                          <div
-                            className="w-4 h-4 bg-white rounded-full flex items-center justify-center border border-gray-300"
-                            style={{
-                              boxShadow: "inset 0 1px 2px rgba(0,0,0,0.1)",
-                            }}
-                          >
-                            <span
-                              className="text-xs font-bold text-gray-800"
-                              style={{
-                                fontSize: "10px",
-                                lineHeight: "1",
-                              }}
-                            >
-                              {participant.name.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="absolute inset-1/2 transform -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full shadow-lg flex items-center justify-center z-20">
-                    <Sparkles
-                      className={`w-6 h-6 text-white ${
-                        isSpinning ? "animate-spin" : ""
-                      }`}
-                    />
-                  </div>
-                </div>
-
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <div className="flex gap-2">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className="w-6 h-6 text-yellow-400 fill-current"
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {currentWinner && (
-                <div className="mb-6 p-6 bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 rounded-2xl text-white animate-bounce-in">
-                  <div className="flex items-center justify-center gap-3 mb-3">
-                    <Trophy className="w-12 h-12" />
-                    <div className="text-4xl">🎉</div>
-                    <Trophy className="w-12 h-12" />
-                  </div>
-                  <h3 className="text-2xl font-bold mb-2">¡FELICITACIONES!</h3>
-                  <p className="text-3xl font-bold mb-2">
-                    {currentWinner.name}
-                  </p>
-                  <div className="flex items-center justify-center gap-2 text-lg">
-                    <span>¡Eres el ganador!</span>
-                    <div
-                      className="w-4 h-4 rounded-full border-2 border-white"
-                      style={{ backgroundColor: currentWinner.color }}
-                    />
-                  </div>
-                  <div className="mt-3 text-sm opacity-90">
-                    🌟 ¡Increíble suerte! 🌟
-                  </div>
-                </div>
-              )}
-
-              <button
-                onClick={spinTombola}
-                disabled={participants.length < 2 || isSpinning}
-                className={`w-full py-4 px-6 rounded-2xl font-bold text-xl transition-all duration-300 ${
-                  participants.length >= 2 && !isSpinning
-                    ? "bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white transform hover:scale-105 shadow-lg"
-                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                }`}
-              >
-                <div className="flex items-center justify-center gap-3">
-                  <Play
-                    className={`w-6 h-6 ${isSpinning ? "animate-spin" : ""}`}
-                  />
-                  {isSpinning ? "¡Girando la Magia!" : "¡GIRAR TOMBOLA!"}
-                </div>
-              </button>
-
-              {participants.length < 2 && (
-                <p className="text-sm text-gray-500 mt-2">
-                  Necesitas al menos 2 participantes
-                </p>
-              )}
-
-              <p className="text-xs text-gray-400 mt-2">
-                Presiona ESPACIO para girar rápidamente
-              </p>
-
-              <button
-                onClick={resetGame}
-                disabled={isSpinning}
-                className="mt-4 px-4 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
-              >
-                <RotateCcw className="w-4 h-4" />
-                Reiniciar Todo
-              </button>
-            </div>
-          </div>
-
-          {/* Right Panel - Winners */}
-          <div className="lg:col-span-1">
+            {/* Panel de Ganadores */}
             <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-2xl">
               <div className="flex items-center gap-3 mb-6">
                 <Trophy className="w-6 h-6 text-yellow-600" />
@@ -541,10 +513,10 @@ function App() {
         </div>
       </div>
 
-      {/* Audio element para el sonido ruleta1 */}
+      {/* Audio element para el sonido de la ruleta */}
       <audio ref={audioRef} preload="auto" style={{ display: "none" }} loop>
-        <source src={Ruleta1Mp3} type="audio/mpeg" />
-        <source src="/assets/mp3/ruleta1.wav" type="audio/wav" />
+        <source src={AudioRuleta} type="audio/mpeg" />
+        <source src="/assets/ruleta1.wav" type="audio/wav" />
         Tu navegador no soporta audio.
       </audio>
 
@@ -554,104 +526,10 @@ function App() {
         preload="auto"
         style={{ display: "none" }}
       >
-        <source src={CongratulationsMp3} type="audio/mpeg" />
+        <source src={AudioFelicitacion} type="audio/mpeg" />
         <source src="/assets/mp3/congratulations.wav" type="audio/wav" />
         Tu navegador no soporta audio.
       </audio>
-
-      <style jsx>{`
-        @keyframes confetti-fall {
-          0% {
-            transform: translateY(-20px) rotate(0deg);
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(100vh) rotate(360deg);
-            opacity: 0;
-          }
-        }
-
-        @keyframes bounce-in {
-          0% {
-            transform: scale(0.5);
-            opacity: 0;
-          }
-          100% {
-            transform: scale(1);
-            opacity: 1;
-          }
-        }
-
-        @keyframes winner-glow {
-          0%,
-          100% {
-            transform: translate(-50%, -50%) scale(1.5);
-          }
-          50% {
-            transform: translate(-50%, -50%) scale(1.7);
-          }
-        }
-
-        @keyframes bounce-crazy {
-          0%,
-          20%,
-          50%,
-          80%,
-          100% {
-            transform: translate(-50%, -50%) translateY(0) translateX(0)
-              scale(1);
-          }
-          10% {
-            transform: translate(-50%, -50%) translateY(-8px) translateX(4px)
-              scale(1.05);
-          }
-          30% {
-            transform: translate(-50%, -50%) translateY(-12px) translateX(-6px)
-              scale(0.95);
-          }
-          60% {
-            transform: translate(-50%, -50%) translateY(-6px) translateX(8px)
-              scale(1.02);
-          }
-          90% {
-            transform: translate(-50%, -50%) translateY(-10px) translateX(-4px)
-              scale(0.98);
-          }
-        }
-
-        @keyframes float {
-          0%,
-          100% {
-            transform: translate(-50%, -50%) translateY(0px) rotate(0deg);
-          }
-          33% {
-            transform: translate(-50%, -50%) translateY(-2px) rotate(1deg);
-          }
-          66% {
-            transform: translate(-50%, -50%) translateY(-1px) rotate(-0.5deg);
-          }
-        }
-
-        .animate-confetti-fall {
-          animation: confetti-fall 2s linear forwards;
-        }
-
-        .animate-bounce-in {
-          animation: bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-        }
-
-        .animate-bounce-crazy {
-          animation: bounce-crazy 0.6s ease-in-out infinite;
-        }
-
-        .animate-float {
-          animation: float 3s ease-in-out infinite;
-        }
-
-        .animate-winner-glow {
-          animation: winner-glow 1s ease-in-out infinite;
-        }
-      `}</style>
     </div>
   );
 }
