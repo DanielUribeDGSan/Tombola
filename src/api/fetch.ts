@@ -4,6 +4,7 @@ export interface Boleto {
   numero_boleto: string;
   nombre_usuario: string;
   activo: number;
+  
 }
 
 export interface BoletosResponse {

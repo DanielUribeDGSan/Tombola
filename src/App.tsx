@@ -24,6 +24,9 @@ import AudioRuleta from "./assets/mp3/ruleta1.mp3";
 import AudioFelicitacion from "./assets/mp3/congratulations.mp3";
 import { boletosService, type Boleto } from "./api/fetch";
 
+import BackgroundImage from "./assets/img/back-dinamica.png";
+import LogoImage from "./assets/img/logo_1.png";
+
 interface Participant {
   id: string;
   name: string;
@@ -554,7 +557,14 @@ function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-400 via-red-500 to-purple-600 p-2 p-md-4 roulette-container">
+    <div
+      className="min-h-screen bg-gradient-to-br from-orange-400 via-red-500 to-purple-600  "
+      style={{
+        backgroundImage: `url('${BackgroundImage}') `,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    >
       {/* Lottie Confetti Animation */}
       {showConfetti && (
         <div className="confetti-overlay">
@@ -568,11 +578,13 @@ function App() {
       )}
 
       <section>
-        <div className="container-fluid px-2 px-md-4">
+        <div className="container px-2 px-md-4">
           <div className="text-center mb-1 mb-md-1">
-            <h1 className="display-3 display-md-2 fw-bold text-white mb-3 mb-md-4 text-shadow">
-              🎊 TOMBOLA MÁGICA 🎊
-            </h1>
+            <img
+              src={LogoImage}
+              className="object-contain logo-image"
+              alt="tombola logo"
+            />
           </div>
 
           {/* Mostrar error de API si existe */}

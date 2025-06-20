@@ -3,6 +3,10 @@
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+body {
+  background-color: #043258 !important;
+}
+
 /* Clases de utilidad responsivas */
 .text-shadow {
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
@@ -737,5 +741,18 @@
 
   .participant-name {
     font-size: 0.875rem;
+  }
+}
+
+.logo-image {
+  width: 50%;
+
+  /* Móviles medianos (576px a 767px) */
+  @media (min-width: 576px) and (max-width: 767.98px) {
+    width: 70%;
+  }
+  /* Tablets (768px a 991px) */
+  @media (min-width: 768px) and (max-width: 991.98px) {
+    width: 50%;
   }
 }
