@@ -558,7 +558,7 @@ function App() {
 
   return (
     <div
-      className="min-h-screen bg-gradient-to-br from-orange-400 via-red-500 to-purple-600  "
+      className="min-h-screen bg-gradient-to-br from-orange-400 via-red-500 to-purple-600  pb-2"
       style={{
         backgroundImage: `url('${BackgroundImage}') `,
         backgroundSize: "cover",
