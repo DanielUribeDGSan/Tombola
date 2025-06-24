@@ -52,7 +52,7 @@ interface CategoryData {
 }
 
 function App() {
-  const SPIN_DURATION = 3000;
+  const SPIN_DURATION = 9000;
   const WINNER_WAIT_DURATION = 1000; // 4 segundos adicionales para mostrar el ganador
   const TOMBOLA_RADIUS = 180 + 30;
   const BALL_RADIUS = 18;
