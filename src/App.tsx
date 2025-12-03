@@ -961,7 +961,6 @@ function App() {
                               {premio.cantidad_ganadores} ganador
                               {premio.cantidad_ganadores > 1 ? "es" : ""}
                             </span>
-                            <span className="badge bg-success">Activo</span>
                           </div>
                         </div>
                       ) : null;
@@ -987,14 +986,12 @@ function App() {
                   </div>
 
                   <div className="winners-list">
-                    {winners.map((winner, index) => (
+                    {[...winners].reverse().map((winner, index) => (
                       <div
                         key={`${winner.id}-${index}`}
                         className="d-flex align-items-center gap-2 gap-md-3 p-3 p-md-4 bg-warning bg-opacity-10 border border-warning rounded-3 mb-2 mb-md-3 winner-item-hover"
                       >
-                        <div className="winner-position">
-                          {winners.length - index}
-                        </div>
+                        <div className="winner-position">{index + 1}</div>
                         <div className="flex-grow-1">
                           <p className="fw-bold text-dark mb-1">
                             {winner.nombre}
