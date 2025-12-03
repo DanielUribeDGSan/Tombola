@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Play, RotateCcw, Trophy, Sparkles } from "lucide-react";
 import Lottie from "lottie-react";
+import { Autocomplete, TextField } from "@mui/material";
 import confettiAnimation from "./assets/confeti/confeti.json";
 import AudioRuleta from "./assets/mp3/ruleta1.mp3";
 import AudioFelicitacion from "./assets/mp3/congratulations.mp3";
@@ -35,7 +36,6 @@ function App() {
   const [winners, setWinners] = useState<Ganador[]>([]);
   const [showConfetti, setShowConfetti] = useState(false);
   const [balls, setBalls] = useState<Ball[]>([]);
-  const [isLoadingRulete, setIsLoadingRulete] = useState(false);
 
   // Nuevos estados para premios
   const [premios, setPremios] = useState<Premio[]>([]);
@@ -53,6 +53,27 @@ function App() {
 
   // Ref para evitar peticiones duplicadas
   const isLoadingPremiosRef = useRef(false);
+
+  // Ref para mantener el premio seleccionado actual sin causar re-renders
+  const selectedPremioIdRef = useRef<number | null>(null);
+
+  // Ref para evitar limpiar ganadores cuando se recargan premios automáticamente
+  const isReloadingPremiosRef = useRef(false);
+
+  // Actualizar ref cuando cambia selectedPremioId y limpiar estados relacionados
+  useEffect(() => {
+    selectedPremioIdRef.current = selectedPremioId;
+
+    // Solo limpiar ganadores si NO estamos recargando premios automáticamente
+    // y el usuario explícitamente deseleccionó el premio
+    if (
+      (selectedPremioId === null || selectedPremioId === undefined) &&
+      !isReloadingPremiosRef.current
+    ) {
+      setCurrentWinners([]);
+      setApiError(""); // Limpiar errores cuando se deselecciona
+    }
+  }, [selectedPremioId]);
 
   // Cargar premios desde la API
   const loadPremios = useCallback(async (silent = false) => {
@@ -76,6 +97,25 @@ function App() {
         const premiosActivos = response.data.filter((premio) => premio.activo);
         setPremios(premiosActivos);
         setPremiosError(""); // Limpiar errores previos si hay éxito
+
+        // Validar que el premio seleccionado siga activo después de recargar
+        const premioIdActual = selectedPremioIdRef.current;
+        if (premioIdActual !== null && premioIdActual !== undefined) {
+          const premioSeleccionadoExiste = premiosActivos.some(
+            (premio) => premio.id === premioIdActual
+          );
+          // Si el premio seleccionado ya no está activo o no existe, limpiar la selección
+          // pero NO limpiar los ganadores actuales si están siendo mostrados
+          if (!premioSeleccionadoExiste) {
+            isReloadingPremiosRef.current = true;
+            setSelectedPremioId(null);
+            setApiError("");
+            // Resetear la bandera después de un breve delay
+            setTimeout(() => {
+              isReloadingPremiosRef.current = false;
+            }, 100);
+          }
+        }
       } else if (response.error) {
         // Solo mostrar error si existe y no es un timeout
         setPremiosError(response.error);
@@ -104,9 +144,17 @@ function App() {
   const handlePremioSelection = useCallback(
     (premioId: string) => {
       if (!isSpinning && !isWaitingForWinner) {
-        const id = premioId ? parseInt(premioId) : null;
+        // Si se selecciona el valor vacío, establecer como null explícitamente
+        const id = premioId && premioId !== "" ? parseInt(premioId) : null;
+
+        // Si se deselecciona el premio explícitamente, limpiar ganadores
+        if (!id || id === null) {
+          isReloadingPremiosRef.current = false; // Asegurar que no estamos en modo recarga
+          setCurrentWinners([]);
+        }
+
         setSelectedPremioId(id);
-        setApiError("");
+        setApiError(""); // Limpiar errores al cambiar selección
       }
     },
     [isSpinning, isWaitingForWinner]
@@ -214,7 +262,7 @@ function App() {
       handleBallCollisions(newBalls);
       return newBalls;
     });
-  }, [TOMBOLA_RADIUS, BALL_RADIUS, GRAVITY, FRICTION, BOUNCE_DAMPING]);
+  }, [TOMBOLA_RADIUS, GRAVITY, FRICTION, BOUNCE_DAMPING]);
 
   // Loop de animación
   useEffect(() => {
@@ -245,14 +293,18 @@ function App() {
 
   // FUNCIÓN PRINCIPAL MODIFICADA - spinTombola
   const spinTombola = useCallback(() => {
-    if (isSpinning || isWaitingForWinner) return;
-
-    // Validar que se haya seleccionado un premio
-    if (!selectedPremioId) {
-      setApiError("Por favor selecciona un premio antes de girar");
+    // Validación estricta: no permitir girar si no hay premio seleccionado
+    if (!selectedPremioId || selectedPremioId === null) {
+      setApiError(
+        "⚠️ Por favor selecciona un premio antes de girar la tombola"
+      );
       return;
     }
-    setIsLoadingRulete(false);
+
+    // Validar que no esté girando o esperando ganadores
+    if (isSpinning || isWaitingForWinner) {
+      return;
+    }
     setCurrentWinners([]);
 
     setApiError(""); // Limpiar errores previos
@@ -356,7 +408,6 @@ function App() {
             setTimeout(async () => {
               setIsWaitingForWinner(false);
               setCurrentWinners(ganadores);
-              setIsLoadingRulete(true);
               setWinners((prev) => [...prev, ...ganadores]);
 
               setShowConfetti(true);
@@ -371,7 +422,8 @@ function App() {
                 });
               }
 
-              // Recargar premios después de obtener ganadores (silenciosamente)
+              // Recargar premios después de obtener ganadores para actualizar lista
+              // y verificar que el premio seleccionado siga activo
               try {
                 await loadPremios(true); // true = silent, no mostrar loading
               } catch (error) {
@@ -431,7 +483,6 @@ function App() {
       setBalls([]);
       setSelectedPremioId(null);
       setApiError("");
-      setIsLoadingRulete(false);
       isSpinningRef.current = false;
     }
   }, [isSpinning, isWaitingForWinner]);
@@ -650,19 +701,37 @@ function App() {
                   )}
 
                   <button
-                    onClick={spinTombola}
+                    onClick={() => {
+                      // Validación adicional antes de girar
+                      if (!selectedPremioId || selectedPremioId === null) {
+                        setApiError(
+                          "⚠️ Por favor selecciona un premio antes de girar la tombola"
+                        );
+                        return;
+                      }
+                      spinTombola();
+                    }}
                     disabled={
                       selectedPremioId === null ||
+                      selectedPremioId === undefined ||
+                      !selectedPremioId ||
                       isSpinning ||
                       isWaitingForWinner
                     }
                     className={`btn w-100 py-3 py-md-4 rounded-4 fw-bold fs-5 fs-md-4 ${
                       selectedPremioId !== null &&
+                      selectedPremioId !== undefined &&
+                      selectedPremioId &&
                       !isSpinning &&
                       !isWaitingForWinner
                         ? "btn-primary btn-glow"
                         : "btn-secondary"
                     }`}
+                    title={
+                      !selectedPremioId || selectedPremioId === null
+                        ? "Selecciona un premio para habilitar el giro"
+                        : "Girar la tombola"
+                    }
                   >
                     <div className="d-flex align-items-center justify-content-center gap-2 gap-md-3">
                       <Play
@@ -714,34 +783,85 @@ function App() {
 
                     {premios.length > 0 && (
                       <div>
-                        <label className="form-label small fw-medium">
+                        <label className="form-label small fw-medium mb-2 d-block">
                           Seleccionar premio:
                         </label>
-                        <select
-                          value={selectedPremioId || ""}
-                          onChange={(e) =>
-                            handlePremioSelection(e.target.value)
+                        <Autocomplete
+                          options={premios}
+                          getOptionLabel={(option) =>
+                            `${option.nombre} (${
+                              option.cantidad_ganadores
+                            } ganador${
+                              option.cantidad_ganadores > 1 ? "es" : ""
+                            })`
                           }
+                          value={
+                            premios.find((p) => p.id === selectedPremioId) ||
+                            null
+                          }
+                          onChange={(_, newValue) => {
+                            handlePremioSelection(
+                              newValue ? newValue.id.toString() : ""
+                            );
+                          }}
                           disabled={
                             isSpinning || isWaitingForWinner || loadingPremios
                           }
-                          className="form-select form-select-lg"
-                        >
-                          <option value="">-- Selecciona un premio --</option>
-                          {premios.map((premio) => (
-                            <option key={premio.id} value={premio.id}>
-                              {premio.nombre} ({premio.cantidad_ganadores}{" "}
-                              ganador{premio.cantidad_ganadores > 1 ? "es" : ""}
-                              )
-                            </option>
-                          ))}
-                        </select>
+                          isOptionEqualToValue={(option, value) =>
+                            option.id === value.id
+                          }
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              placeholder="Buscar y seleccionar un premio..."
+                              variant="outlined"
+                              sx={{
+                                "& .MuiOutlinedInput-root": {
+                                  borderRadius: "0.5rem",
+                                  backgroundColor: "white",
+                                  fontSize: "1rem",
+                                  padding: "12px 14px",
+                                  "&:hover .MuiOutlinedInput-notchedOutline": {
+                                    borderColor: "#cd040a",
+                                  },
+                                  "&.Mui-focused .MuiOutlinedInput-notchedOutline":
+                                    {
+                                      borderColor: "#cd040a",
+                                      borderWidth: "2px",
+                                    },
+                                },
+                                "& .MuiInputLabel-root.Mui-focused": {
+                                  color: "#cd040a",
+                                },
+                              }}
+                            />
+                          )}
+                          sx={{
+                            "& .MuiAutocomplete-inputRoot": {
+                              fontSize: "1rem",
+                            },
+                          }}
+                          componentsProps={{
+                            popper: {
+                              sx: {
+                                "& .MuiPaper-root": {
+                                  animation: "none !important",
+                                  transition:
+                                    "opacity 0.15s ease-in-out !important",
+                                  transform: "none !important",
+                                },
+                              },
+                            },
+                          }}
+                          noOptionsText="No se encontraron premios"
+                          loadingText="Cargando premios..."
+                        />
                       </div>
                     )}
                   </div>
                 </div>
               </div>
-              {isLoadingRulete && currentWinners.length > 0 && (
+              {currentWinners.length > 0 && (
                 <div className="alert alert-success border-0 rounded-4 p-3 p-md-4 mb-4 winner-celebration animate-bounce">
                   <div className="d-flex align-items-center justify-content-center gap-2 gap-md-3 mb-3">
                     <Trophy size={window.innerWidth < 576 ? 24 : 32} />

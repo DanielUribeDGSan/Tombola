@@ -3,8 +3,15 @@
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+/* Deshabilitar animación del menú desplegable de MUI Autocomplete */
+.MuiAutocomplete-popper .MuiPaper-root {
+  animation: none !important;
+  transition: opacity 0.15s ease-in-out !important;
+  transform: none !important;
+}
+
 body {
-  background-color: #043258 !important;
+  background-color: #780002 !important ;
 }
 
 /* Clases de utilidad responsivas */
