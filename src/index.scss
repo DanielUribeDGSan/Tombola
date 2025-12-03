@@ -251,6 +251,28 @@ body {
     height: 3.5rem;
   }
 
+  .gift-box {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .gift-bow {
+    width: 20px;
+    height: 14px;
+    top: -6px;
+  }
+
+  .gift-bow-center {
+    width: 8px;
+    height: 8px;
+  }
+
+  .gift-bow-left,
+  .gift-bow-right {
+    width: 8px;
+    height: 10px;
+  }
+
   .participant-ball {
     width: 2rem;
     height: 2rem;
@@ -498,7 +520,89 @@ body {
   z-index: 20;
 }
 
-/* Pelotas de participantes */
+/* Regalos cuadrados con moño */
+.gift-box {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.1s ease;
+}
+
+.gift-box-body {
+  position: relative;
+  border-radius: 4px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+}
+
+/* Líneas decorativas del regalo */
+.gift-stripe {
+  position: absolute;
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.gift-stripe-horizontal {
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  transform: translateY(-50%);
+}
+
+.gift-stripe-vertical {
+  left: 50%;
+  top: 0;
+  width: 3px;
+  height: 100%;
+  transform: translateX(-50%);
+}
+
+/* Moño del regalo */
+.gift-bow {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 16px;
+  z-index: 10;
+}
+
+.gift-bow-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.gift-bow-left,
+.gift-bow-right {
+  position: absolute;
+  top: 0;
+  width: 10px;
+  height: 12px;
+  border-radius: 50% 50% 50% 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.gift-bow-left {
+  left: 0;
+  transform: rotate(-20deg);
+}
+
+.gift-bow-right {
+  right: 0;
+  transform: rotate(20deg) scaleX(-1);
+}
+
+/* Pelotas de participantes (mantener para compatibilidad) */
 .participant-ball {
   border-radius: 50%;
   border: 2px solid #374151;

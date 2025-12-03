@@ -267,25 +267,45 @@ function App() {
     setIsSpinning(true);
     isSpinningRef.current = true;
 
-    // Crear bolas genéricas para la animación
+    // Crear regalos genéricos para la animación (más cantidad para simular más elementos)
     setBalls((prevBalls) => {
       if (prevBalls.length === 0) {
-        return Array.from({ length: 20 }, (_, index) => {
+        // Aumentar a 50 regalos para simular más cantidad
+        const giftColors = [
+          "#EF4444", // Rojo
+          "#F97316", // Naranja
+          "#F59E0B", // Ámbar
+          "#84CC16", // Lima
+          "#22C55E", // Verde
+          "#06B6D4", // Cyan
+          "#3B82F6", // Azul
+          "#8B5CF6", // Violeta
+          "#EC4899", // Rosa
+          "#F43F5E", // Rose
+          "#10B981", // Esmeralda
+          "#14B8A6", // Teal
+          "#6366F1", // Índigo
+          "#A855F7", // Púrpura
+          "#F472B6", // Rosa claro
+          "#FB7185", // Rose claro
+        ];
+
+        return Array.from({ length: 50 }, (_, index) => {
           const angle = (index * 137.5) % 360;
-          const radius = 20 + (index % 3) * 12;
+          const radius = 20 + (index % 5) * 10;
           const centerX = TOMBOLA_RADIUS;
           const centerY = TOMBOLA_RADIUS;
           const x = centerX + Math.cos((angle * Math.PI) / 180) * radius;
           const y = centerY + Math.sin((angle * Math.PI) / 180) * radius;
 
           return {
-            id: `ball-${index}`,
+            id: `gift-${index}`,
             x,
             y,
             vx: (Math.random() - 0.5) * 15 + Math.cos(index * 2) * 5,
             vy: (Math.random() - 0.5) * 15 + Math.sin(index * 2) * 5,
             radius: BALL_RADIUS,
-            color: `hsl(${(index * 137.5) % 360}, 70%, 50%)`,
+            color: giftColors[index % giftColors.length],
             name: String.fromCharCode(65 + (index % 26)),
           };
         });
@@ -524,21 +544,64 @@ function App() {
                           balls.map((ball) => (
                             <div
                               key={ball.id}
-                              className="participant-ball"
+                              className="gift-box"
                               style={{
-                                backgroundColor: ball.color,
                                 position: "absolute",
                                 left: `${ball.x - BALL_RADIUS}px`,
                                 top: `${ball.y - BALL_RADIUS}px`,
                                 width: `${BALL_RADIUS * 2}px`,
                                 height: `${BALL_RADIUS * 2}px`,
-                                boxShadow: "0 5px 10px rgba(0,0,0,0.3)",
                               }}
                             >
-                              <div className="participant-ball-content">
-                                <span className="participant-initial">
-                                  {ball.name.charAt(0).toUpperCase()}
-                                </span>
+                              {/* Caja del regalo */}
+                              <div
+                                className="gift-box-body"
+                                style={{
+                                  backgroundImage: `url('${BackgroundImage}')`,
+                                  backgroundSize: "cover",
+                                  backgroundPosition: "center",
+                                  width: "100%",
+                                  height: "100%",
+                                }}
+                              >
+                                {/* Líneas decorativas horizontales */}
+                                <div
+                                  className="gift-stripe gift-stripe-horizontal"
+                                  style={{
+                                    backgroundColor: "rgba(255, 255, 255, 0.3)",
+                                  }}
+                                />
+                                {/* Líneas decorativas verticales */}
+                                <div
+                                  className="gift-stripe gift-stripe-vertical"
+                                  style={{
+                                    backgroundColor: "rgba(255, 255, 255, 0.3)",
+                                  }}
+                                />
+                              </div>
+                              {/* Moño superior */}
+                              <div className="gift-bow">
+                                <div
+                                  className="gift-bow-center"
+                                  style={{
+                                    backgroundColor: ball.color,
+                                    filter: "brightness(0.8)",
+                                  }}
+                                />
+                                <div
+                                  className="gift-bow-left"
+                                  style={{
+                                    backgroundColor: ball.color,
+                                    filter: "brightness(0.7)",
+                                  }}
+                                />
+                                <div
+                                  className="gift-bow-right"
+                                  style={{
+                                    backgroundColor: ball.color,
+                                    filter: "brightness(0.7)",
+                                  }}
+                                />
                               </div>
                             </div>
                           ))}
