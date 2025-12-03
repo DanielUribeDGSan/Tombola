@@ -21,6 +21,11 @@ interface Ball {
   name: string;
 }
 
+interface GanadorConPremio extends Ganador {
+  premioNombre?: string;
+  premioId?: number;
+}
+
 function App() {
   const SPIN_DURATION = 9000;
   const WINNER_WAIT_DURATION = 1000; // 4 segundos adicionales para mostrar el ganador
@@ -33,7 +38,8 @@ function App() {
   const [isSpinning, setIsSpinning] = useState(false);
   const [isWaitingForWinner, setIsWaitingForWinner] = useState(false); // Nuevo estado
   const [currentWinners, setCurrentWinners] = useState<Ganador[]>([]);
-  const [winners, setWinners] = useState<Ganador[]>([]);
+  const [currentPremioNombre, setCurrentPremioNombre] = useState<string>("");
+  const [winners, setWinners] = useState<GanadorConPremio[]>([]);
   const [showConfetti, setShowConfetti] = useState(false);
   const [balls, setBalls] = useState<Ball[]>([]);
 
@@ -71,6 +77,7 @@ function App() {
       !isReloadingPremiosRef.current
     ) {
       setCurrentWinners([]);
+      setCurrentPremioNombre("");
       setApiError(""); // Limpiar errores cuando se deselecciona
     }
   }, [selectedPremioId]);
@@ -151,6 +158,7 @@ function App() {
         if (!id || id === null) {
           isReloadingPremiosRef.current = false; // Asegurar que no estamos en modo recarga
           setCurrentWinners([]);
+          setCurrentPremioNombre("");
         }
 
         setSelectedPremioId(id);
@@ -306,6 +314,7 @@ function App() {
       return;
     }
     setCurrentWinners([]);
+    setCurrentPremioNombre("");
 
     setApiError(""); // Limpiar errores previos
 
@@ -408,7 +417,23 @@ function App() {
             setTimeout(async () => {
               setIsWaitingForWinner(false);
               setCurrentWinners(ganadores);
-              setWinners((prev) => [...prev, ...ganadores]);
+
+              // Obtener el nombre del premio seleccionado
+              const premioSeleccionado = premios.find(
+                (p) => p.id === selectedPremioId
+              );
+              const nombrePremio = premioSeleccionado?.nombre || "";
+              setCurrentPremioNombre(nombrePremio);
+
+              // Guardar ganadores con información del premio
+              const ganadoresConPremio: GanadorConPremio[] = ganadores.map(
+                (ganador) => ({
+                  ...ganador,
+                  premioNombre: nombrePremio,
+                  premioId: selectedPremioId || undefined,
+                })
+              );
+              setWinners((prev) => [...prev, ...ganadoresConPremio]);
 
               setShowConfetti(true);
 
@@ -459,6 +484,7 @@ function App() {
     isSpinning,
     isWaitingForWinner,
     selectedPremioId,
+    premios,
     SPIN_DURATION,
     WINNER_WAIT_DURATION,
     loadPremios,
@@ -874,6 +900,13 @@ function App() {
                     </div>
                     <Trophy size={window.innerWidth < 576 ? 24 : 32} />
                   </div>
+                  {currentPremioNombre && (
+                    <div className="mb-2 text-center w-100">
+                      <span className="premio-badge d-block">
+                        {currentPremioNombre}
+                      </span>
+                    </div>
+                  )}
                   <h3 className="fs-4 fs-md-3 fw-bold mb-2 text-center">
                     {currentWinners.length === 1
                       ? "¡FELICITACIONES!"
@@ -970,6 +1003,14 @@ function App() {
                             <span className="small text-muted">
                               Participante: {winner.numero_participante}
                             </span>
+                            {winner.premioNombre && (
+                              <>
+                                <span className="small text-muted">•</span>
+                                <span className="small text-muted fw-medium">
+                                  Premio: {winner.premioNombre}
+                                </span>
+                              </>
+                            )}
                           </div>
                         </div>
                         <Trophy

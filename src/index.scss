@@ -10,6 +10,27 @@
   transform: none !important;
 }
 
+/* Badge del premio en la card de ganadores */
+.premio-badge {
+  display: inline-block;
+  background-color: white;
+  color: #c70107;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 body {
   background-color: #780002 !important ;
 }
