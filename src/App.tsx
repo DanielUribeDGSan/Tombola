@@ -597,110 +597,120 @@ function App() {
           <div className="row g-3 g-lg-4">
             {/* Columna Izquierda - Tombola Grande */}
             <div className="col-12 col-lg-7 order-2 order-lg-1">
-              <div className="card shadow-lg border-0 rounded-4 h-100">
+              <div className="card shadow-lg border-0 rounded-4 ">
                 <div className="card-body p-3 p-md-4 p-lg-5 text-center d-flex flex-column align-items-center justify-content-center">
                   <div className="d-flex justify-content-center align-items-center mb-4 mb-md-5">
-                    <div
-                      ref={tombolaRef}
-                      className="tombola-wheel"
-                      style={{
-                        background: "linear-gradient(145deg, #e2e8f0, #cbd5e1)",
-                        borderRadius: "50%",
-                        border: "0.5rem solid #64748b",
-                        boxShadow:
-                          "inset 0 8px 16px rgba(0,0,0,0.2), 0 16px 64px rgba(0,0,0,0.3)",
-                        transition: "transform 0.5s ease",
-                        position: "relative",
-                        overflow: "hidden",
-                        width: `${TOMBOLA_RADIUS * 2}px`,
-                        height: `${TOMBOLA_RADIUS * 2}px`,
-                      }}
-                    >
-                      <div className="position-absolute tombola-inner">
-                        {isSpinning &&
-                          balls.map((ball) => (
-                            <div
-                              key={ball.id}
-                              className="gift-box"
-                              style={{
-                                position: "absolute",
-                                left: `${ball.x - BALL_RADIUS}px`,
-                                top: `${ball.y - BALL_RADIUS}px`,
-                                width: `${BALL_RADIUS * 2}px`,
-                                height: `${BALL_RADIUS * 2}px`,
-                              }}
-                            >
-                              {/* Caja del regalo */}
+                    <div className="christmas-ornament-container">
+                      {/* Hilo de la esfera de Navidad */}
+                      <div className="christmas-ornament-hook"></div>
+                      <div
+                        ref={tombolaRef}
+                        className="tombola-wheel christmas-ornament"
+                        style={{
+                          transition: "transform 0.5s ease",
+                          position: "relative",
+                          overflow: "hidden",
+                          width: `${TOMBOLA_RADIUS * 2}px`,
+                          height: `${TOMBOLA_RADIUS * 2}px`,
+                        }}
+                      >
+                        <div className="position-absolute tombola-inner">
+                          {isSpinning &&
+                            balls.map((ball) => (
                               <div
-                                className="gift-box-body"
+                                key={ball.id}
+                                className="gift-box"
                                 style={{
-                                  backgroundImage: `url('${BackgroundImage}')`,
-                                  backgroundSize: "cover",
-                                  backgroundPosition: "center",
-                                  width: "100%",
-                                  height: "100%",
+                                  position: "absolute",
+                                  left: `${ball.x - BALL_RADIUS}px`,
+                                  top: `${ball.y - BALL_RADIUS}px`,
+                                  width: `${BALL_RADIUS * 2}px`,
+                                  height: `${BALL_RADIUS * 2}px`,
                                 }}
                               >
-                                {/* Líneas decorativas horizontales */}
+                                {/* Caja del regalo */}
                                 <div
-                                  className="gift-stripe gift-stripe-horizontal"
+                                  className="gift-box-body"
                                   style={{
-                                    backgroundColor: "rgba(255, 255, 255, 0.3)",
+                                    backgroundImage: `url('${BackgroundImage}')`,
+                                    backgroundSize: "cover",
+                                    backgroundPosition: "center",
+                                    width: "100%",
+                                    height: "100%",
                                   }}
-                                />
-                                {/* Líneas decorativas verticales */}
-                                <div
-                                  className="gift-stripe gift-stripe-vertical"
-                                  style={{
-                                    backgroundColor: "rgba(255, 255, 255, 0.3)",
-                                  }}
-                                />
+                                ></div>
+                                {/* Moño superior */}
+                                <div className="gift-bow">
+                                  <div
+                                    className="gift-bow-center"
+                                    style={{
+                                      backgroundColor: "white",
+                                      border: `2px solid ${ball.color}`,
+                                    }}
+                                  >
+                                    <div
+                                      className="gift-bow-line"
+                                      style={{
+                                        backgroundColor: ball.color,
+                                      }}
+                                    />
+                                  </div>
+                                  <div
+                                    className="gift-bow-left"
+                                    style={{
+                                      backgroundColor: "white",
+                                      border: `2px solid ${ball.color}`,
+                                    }}
+                                  >
+                                    <div
+                                      className="gift-bow-line"
+                                      style={{
+                                        backgroundColor: ball.color,
+                                      }}
+                                    />
+                                  </div>
+                                  <div
+                                    className="gift-bow-right"
+                                    style={{
+                                      backgroundColor: "white",
+                                      border: `2px solid ${ball.color}`,
+                                    }}
+                                  >
+                                    <div
+                                      className="gift-bow-line"
+                                      style={{
+                                        backgroundColor: ball.color,
+                                      }}
+                                    />
+                                  </div>
+                                </div>
                               </div>
-                              {/* Moño superior */}
-                              <div className="gift-bow">
-                                <div
-                                  className="gift-bow-center"
-                                  style={{
-                                    backgroundColor: ball.color,
-                                    filter: "brightness(0.8)",
-                                  }}
+                            ))}
+                          {!isSpinning && (
+                            <div className="d-flex align-items-center justify-content-center h-100 text-muted">
+                              <div className="text-center">
+                                <Sparkles
+                                  size={48}
+                                  className="mb-2 opacity-50"
                                 />
-                                <div
-                                  className="gift-bow-left"
-                                  style={{
-                                    backgroundColor: ball.color,
-                                    filter: "brightness(0.7)",
-                                  }}
-                                />
-                                <div
-                                  className="gift-bow-right"
-                                  style={{
-                                    backgroundColor: ball.color,
-                                    filter: "brightness(0.7)",
-                                  }}
-                                />
+                                <p className="small mb-0">
+                                  Selecciona un premio
+                                </p>
                               </div>
                             </div>
-                          ))}
-                        {!isSpinning && (
-                          <div className="d-flex align-items-center justify-content-center h-100 text-muted">
-                            <div className="text-center">
-                              <Sparkles size={48} className="mb-2 opacity-50" />
-                              <p className="small mb-0">Selecciona un premio</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                          )}
+                        </div>
 
-                      <div className="tombola-center-icon">
-                        <Sparkles
-                          className={`text-white ${
-                            isSpinning || isWaitingForWinner
-                              ? "animate-spin"
-                              : ""
-                          }`}
-                          size={window.innerWidth < 576 ? 32 : 40}
-                        />
+                        <div className="tombola-center-icon">
+                          <Sparkles
+                            className={`text-white ${
+                              isSpinning || isWaitingForWinner
+                                ? "animate-spin"
+                                : ""
+                            }`}
+                            size={window.innerWidth < 576 ? 32 : 40}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
