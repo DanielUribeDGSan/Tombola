@@ -1,38 +1,13 @@
-import React, {
-  useState,
-  useRef,
-  useEffect,
-  useCallback,
-  useMemo,
-} from "react";
-import {
-  Play,
-  Plus,
-  Trash2,
-  RotateCcw,
-  Trophy,
-  Users,
-  Sparkles,
-  Star,
-  Download,
-  RefreshCw,
-  List,
-} from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Play, RotateCcw, Trophy, Sparkles } from "lucide-react";
 import Lottie from "lottie-react";
 import confettiAnimation from "./assets/confeti/confeti.json";
 import AudioRuleta from "./assets/mp3/ruleta1.mp3";
 import AudioFelicitacion from "./assets/mp3/congratulations.mp3";
-import { boletosService, type Boleto } from "./api/fetch";
+import { boletosService, type Premio, type Ganador } from "./api/fetch";
 
-import BackgroundImage from "./assets/img/back-dinamica.png";
-import LogoImage from "./assets/img/logo_1.png";
-
-interface Participant {
-  id: string;
-  name: string;
-  color: string;
-  category: number;
-}
+import BackgroundImage from "./assets/img/fondo.png";
+import LogoImage from "./assets/img/logo.png";
 
 interface Ball {
   id: string;
@@ -45,12 +20,6 @@ interface Ball {
   name: string;
 }
 
-interface CategoryData {
-  name: string;
-  boletos: Boleto[];
-  participants: Participant[];
-}
-
 function App() {
   const SPIN_DURATION = 9000;
   const WINNER_WAIT_DURATION = 1000; // 4 segundos adicionales para mostrar el ganador
@@ -60,25 +29,19 @@ function App() {
   const FRICTION = 0.985;
   const BOUNCE_DAMPING = 0.9;
 
-  // Estados existentes
-  const [participants, setParticipants] = useState<Participant[]>([]);
-
   const [isSpinning, setIsSpinning] = useState(false);
   const [isWaitingForWinner, setIsWaitingForWinner] = useState(false); // Nuevo estado
-  const [currentWinner, setCurrentWinner] = useState<Participant | null>(null);
-  const [winners, setWinners] = useState<Participant[]>([]);
+  const [currentWinners, setCurrentWinners] = useState<Ganador[]>([]);
+  const [winners, setWinners] = useState<Ganador[]>([]);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [winnerBallAnimation, setWinnerBallAnimation] = useState(false);
   const [balls, setBalls] = useState<Ball[]>([]);
   const [isLoadingRulete, setIsLoadingRulete] = useState(false);
 
-  // Nuevos estados para boletos
-  const [categories, setCategories] = useState<Record<string, CategoryData>>(
-    {}
-  );
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [loadingBoletos, setLoadingBoletos] = useState(false);
-  const [boletosError, setBoletosError] = useState<string>("");
+  // Nuevos estados para premios
+  const [premios, setPremios] = useState<Premio[]>([]);
+  const [selectedPremioId, setSelectedPremioId] = useState<number | null>(null);
+  const [loadingPremios, setLoadingPremios] = useState(false);
+  const [premiosError, setPremiosError] = useState<string>("");
 
   const [apiError, setApiError] = useState<string>(""); // Nuevo estado para errores de API
 
@@ -88,132 +51,66 @@ function App() {
   const animationRef = useRef<number>();
   const isSpinningRef = useRef(false);
 
-  const colors = [
-    "#EF4444",
-    "#F97316",
-    "#F59E0B",
-    "#84CC16",
-    "#22C55E",
-    "#06B6D4",
-    "#3B82F6",
-    "#8B5CF6",
-    "#EC4899",
-    "#F43F5E",
-  ];
+  // Ref para evitar peticiones duplicadas
+  const isLoadingPremiosRef = useRef(false);
 
-  // Función para convertir boletos a participantes
-  const convertBoletosToParticipants = useCallback(
-    (boletos: Boleto[]): Participant[] => {
-      return boletos
-        .filter((boleto) => boleto.activo === 1)
-        .map((boleto, index) => ({
-          id: boleto.numero_boleto,
-          name: boleto.nombre_usuario,
-          color: colors[index % colors.length],
-          category: Number(selectedCategory),
-        }));
-    },
-    [colors, selectedCategory]
-  );
+  // Cargar premios desde la API
+  const loadPremios = useCallback(async (silent = false) => {
+    // Evitar peticiones duplicadas
+    if (isLoadingPremiosRef.current) {
+      return;
+    }
 
-  // Cargar boletos desde la API
-  const loadBoletos = useCallback(async () => {
-    setLoadingBoletos(true);
-    setBoletosError("");
+    isLoadingPremiosRef.current = true;
+
+    if (!silent) {
+      setLoadingPremios(true);
+    }
+    setPremiosError("");
 
     try {
-      const response = await boletosService.fetchBoletos();
+      const response = await boletosService.fetchPremios();
 
       if (response.success && response.data) {
-        const categoriesData: Record<string, CategoryData> = {};
-
-        Object.entries(response.data).forEach(([categoryId, boletos]) => {
-          const participants = convertBoletosToParticipants(boletos);
-          categoriesData[categoryId] = {
-            name: `Categoría ${categoryId}`,
-            boletos,
-            participants,
-          };
-        });
-
-        setCategories(categoriesData);
+        // Filtrar solo premios activos
+        const premiosActivos = response.data.filter((premio) => premio.activo);
+        setPremios(premiosActivos);
+        setPremiosError(""); // Limpiar errores previos si hay éxito
+      } else if (response.error) {
+        // Solo mostrar error si existe y no es un timeout
+        setPremiosError(response.error);
       } else {
-        setBoletosError(response.error || "Error al cargar boletos");
+        // Si no hay error explícito, limpiar errores previos
+        setPremiosError("");
       }
     } catch (error) {
-      setBoletosError("Error de conexión al cargar boletos");
-      console.error("Error loading boletos:", error);
+      setPremiosError("Error de conexión al cargar premios");
+      console.error("Error loading premios:", error);
     } finally {
-      setLoadingBoletos(false);
+      if (!silent) {
+        setLoadingPremios(false);
+      }
+      isLoadingPremiosRef.current = false;
     }
-  }, [convertBoletosToParticipants]);
-
-  // Cargar boletos al montar el componente
-  useEffect(() => {
-    loadBoletos();
   }, []);
 
-  // Función para cargar participantes de una categoría
-  const loadParticipantsFromCategory = useCallback(
-    (categoryId: string) => {
-      if (categories[categoryId] && !isSpinning && !isWaitingForWinner) {
-        setParticipants(categories[categoryId].participants);
-        setSelectedCategory(categoryId);
+  // Cargar premios al montar el componente (solo una vez)
+  useEffect(() => {
+    loadPremios();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Solo ejecutar una vez al montar
 
+  // Función para seleccionar un premio
+  const handlePremioSelection = useCallback(
+    (premioId: string) => {
+      if (!isSpinning && !isWaitingForWinner) {
+        const id = premioId ? parseInt(premioId) : null;
+        setSelectedPremioId(id);
         setApiError("");
       }
     },
-    [categories, isSpinning, isWaitingForWinner]
+    [isSpinning, isWaitingForWinner]
   );
-
-  // Calcular posiciones iniciales
-  const ballPositions = useMemo(() => {
-    return participants.map((_, index) => {
-      const angle = (index * 137.5) % 360;
-      const radius = 20 + (index % 3) * 12;
-      const centerX = 50;
-      const centerY = 50;
-
-      const x = centerX + Math.cos((angle * Math.PI) / 180) * radius;
-      const y = centerY + Math.sin((angle * Math.PI) / 180) * radius;
-
-      const maxRadius = 42;
-      const distanceFromCenter = Math.sqrt(
-        (x - centerX) ** 2 + (y - centerY) ** 2
-      );
-
-      if (distanceFromCenter > maxRadius) {
-        const scale = maxRadius / distanceFromCenter;
-        return {
-          x: centerX + (x - centerX) * scale,
-          y: centerY + (y - centerY) * scale,
-        };
-      }
-
-      return { x, y };
-    });
-  }, [participants.length]);
-
-  // Inicializar bolas físicas
-  const initializeBalls = useCallback(() => {
-    const newBalls: Ball[] = participants.map((participant, index) => {
-      const position = ballPositions[index];
-      const x = (position.x / 100) * (TOMBOLA_RADIUS * 2);
-      const y = (position.y / 100) * (TOMBOLA_RADIUS * 2);
-
-      return {
-        id: participant.id,
-        x: x,
-        y: y,
-        vx: (Math.random() - 0.5) * 2,
-        vy: (Math.random() - 0.5) * 2,
-        radius: BALL_RADIUS,
-        color: participant.color,
-        name: participant.name,
-      };
-    });
-    setBalls(newBalls);
-  }, [participants, ballPositions]);
 
   // Detectar colisiones entre bolas
   const handleBallCollisions = (ballArray: Ball[]) => {
@@ -317,7 +214,7 @@ function App() {
       handleBallCollisions(newBalls);
       return newBalls;
     });
-  }, []);
+  }, [TOMBOLA_RADIUS, BALL_RADIUS, GRAVITY, FRICTION, BOUNCE_DAMPING]);
 
   // Loop de animación
   useEffect(() => {
@@ -339,24 +236,24 @@ function App() {
     };
   }, [isSpinning, updateBalls]);
 
-  // Inicializar bolas cuando cambian los participantes
+  // Limpiar bolas cuando no está girando
   useEffect(() => {
     if (!isSpinning && !isWaitingForWinner) {
-      initializeBalls();
+      setBalls([]);
     }
-  }, [participants, initializeBalls, isSpinning, isWaitingForWinner]);
+  }, [isSpinning, isWaitingForWinner]);
 
   // FUNCIÓN PRINCIPAL MODIFICADA - spinTombola
   const spinTombola = useCallback(() => {
-    if (participants.length < 2 || isSpinning || isWaitingForWinner) return;
+    if (isSpinning || isWaitingForWinner) return;
 
-    // Validar que en modo boletos se haya seleccionado una categoría
-    if (!selectedCategory) {
-      setApiError("Por favor selecciona una categoría antes de girar");
+    // Validar que se haya seleccionado un premio
+    if (!selectedPremioId) {
+      setApiError("Por favor selecciona un premio antes de girar");
       return;
     }
     setIsLoadingRulete(false);
-    setCurrentWinner(null);
+    setCurrentWinners([]);
 
     setApiError(""); // Limpiar errores previos
 
@@ -369,23 +266,43 @@ function App() {
 
     setIsSpinning(true);
     isSpinningRef.current = true;
-    // No limpiar currentWinner aquí - se mantiene visible hasta que haya un nuevo ganador
-    setWinnerBallAnimation(false);
 
-    setBalls((prevBalls) =>
-      prevBalls.map((ball, index) => ({
+    // Crear bolas genéricas para la animación
+    setBalls((prevBalls) => {
+      if (prevBalls.length === 0) {
+        return Array.from({ length: 20 }, (_, index) => {
+          const angle = (index * 137.5) % 360;
+          const radius = 20 + (index % 3) * 12;
+          const centerX = TOMBOLA_RADIUS;
+          const centerY = TOMBOLA_RADIUS;
+          const x = centerX + Math.cos((angle * Math.PI) / 180) * radius;
+          const y = centerY + Math.sin((angle * Math.PI) / 180) * radius;
+
+          return {
+            id: `ball-${index}`,
+            x,
+            y,
+            vx: (Math.random() - 0.5) * 15 + Math.cos(index * 2) * 5,
+            vy: (Math.random() - 0.5) * 15 + Math.sin(index * 2) * 5,
+            radius: BALL_RADIUS,
+            color: `hsl(${(index * 137.5) % 360}, 70%, 50%)`,
+            name: String.fromCharCode(65 + (index % 26)),
+          };
+        });
+      }
+      return prevBalls.map((ball, index) => ({
         ...ball,
         vx: (Math.random() - 0.5) * 15 + Math.cos(index * 2) * 5,
         vy: (Math.random() - 0.5) * 15 + Math.sin(index * 2) * 5,
-      }))
-    );
+      }));
+    });
 
     if (tombolaRef.current) {
       tombolaRef.current.style.transform = "rotate(1080deg)";
       tombolaRef.current.style.transition = `transform ${SPIN_DURATION}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`;
     }
 
-    // Después del tiempo de giro, obtener el ganador
+    // Después del tiempo de giro, obtener los ganadores
     setTimeout(async () => {
       if (audioRef.current) {
         audioRef.current.pause();
@@ -401,105 +318,80 @@ function App() {
         tombolaRef.current.style.transition = "";
       }
 
-      let winner: Participant | null = null;
-
       try {
-        if (selectedCategory) {
-          // Usar el servicio API para obtener el ganador
-          const nivel = parseInt(selectedCategory);
-          const response = await boletosService.seleccionarBoleto(nivel);
+        if (selectedPremioId) {
+          // Usar el servicio API para obtener los ganadores
+          const response = await boletosService.seleccionarGanadores(
+            selectedPremioId
+          );
 
-          if (response.success && response.data) {
-            // Crear el objeto ganador con los datos del servicio
-            const winnerColor =
-              colors[Math.floor(Math.random() * colors.length)];
+          if (response.success && response.data && response.data.ganadores) {
+            const ganadores = response.data.ganadores;
 
-            winner = {
-              id: response.data.boleto,
-              name: response.data.usuario,
-              color: winnerColor,
-              category: nivel,
-            };
+            if (ganadores.length === 0) {
+              throw new Error("No se obtuvieron ganadores");
+            }
+
+            // Esperar antes de mostrar los ganadores
+            setTimeout(async () => {
+              setIsWaitingForWinner(false);
+              setCurrentWinners(ganadores);
+              setIsLoadingRulete(true);
+              setWinners((prev) => [...prev, ...ganadores]);
+
+              setShowConfetti(true);
+
+              if (congratulationsAudioRef.current) {
+                congratulationsAudioRef.current.currentTime = 0;
+                congratulationsAudioRef.current.play().catch((error) => {
+                  console.log(
+                    "No se pudo reproducir el audio de felicitación:",
+                    error
+                  );
+                });
+              }
+
+              // Recargar premios después de obtener ganadores (silenciosamente)
+              try {
+                await loadPremios(true); // true = silent, no mostrar loading
+              } catch (error) {
+                console.error(
+                  "Error al recargar premios después del giro:",
+                  error
+                );
+              }
+
+              // Solo quitar confetti después de 5 segundos
+              setTimeout(() => {
+                setShowConfetti(false);
+              }, 5000);
+            }, WINNER_WAIT_DURATION);
           } else {
             throw new Error(
-              response.error || "Error al seleccionar boleto desde el servidor"
+              response.error ||
+                "Error al seleccionar ganadores desde el servidor"
             );
           }
-        } else {
-          // Modo manual - selección aleatoria local
-          winner =
-            participants[Math.floor(Math.random() * participants.length)];
         }
-
-        if (!winner) {
-          throw new Error("No se pudo determinar un ganador");
-        }
-
-        // Esperar 4 segundos adicionales antes de mostrar el ganador
-        setTimeout(async () => {
-          setIsWaitingForWinner(false);
-          setCurrentWinner(winner); // Aquí se limpia el anterior y se establece el nuevo
-          setIsLoadingRulete(true);
-          setWinners((prev) => [...prev, winner!]);
-
-          setWinnerBallAnimation(true);
-          setShowConfetti(true);
-
-          if (congratulationsAudioRef.current) {
-            congratulationsAudioRef.current.currentTime = 0;
-            congratulationsAudioRef.current.play().catch((error) => {
-              console.log(
-                "No se pudo reproducir el audio de felicitación:",
-                error
-              );
-            });
-          }
-
-          // Recargar datos del servidor después del ganador (solo en modo boletos)
-
-          try {
-            await loadBoletos();
-            // Recargar participantes de la categoría actual después de actualizar
-            if (selectedCategory && categories[selectedCategory]) {
-              setTimeout(() => {
-                loadParticipantsFromCategory(selectedCategory);
-              }, 100);
-            }
-          } catch (error) {
-            console.error(
-              "Error al recargar boletos después del ganador:",
-              error
-            );
-          }
-
-          // Solo quitar confetti y animación de pelota después de 5 segundos
-          // El currentWinner se mantiene hasta el próximo giro
-          setTimeout(() => {
-            setShowConfetti(false);
-            setWinnerBallAnimation(false);
-          }, 5000);
-        }, WINNER_WAIT_DURATION);
       } catch (error) {
-        console.error("Error al obtener ganador:", error);
+        console.error("Error al obtener ganadores:", error);
         setIsWaitingForWinner(false);
         setApiError(
           error instanceof Error
             ? error.message
-            : "Error desconocido al obtener ganador"
+            : "Error desconocido al obtener ganadores"
         );
       }
     }, SPIN_DURATION);
   }, [
-    participants,
     isSpinning,
     isWaitingForWinner,
-    selectedCategory,
-    colors,
+    selectedPremioId,
     SPIN_DURATION,
     WINNER_WAIT_DURATION,
-    loadBoletos,
-    categories,
-    loadParticipantsFromCategory,
+    loadPremios,
+    TOMBOLA_RADIUS,
+    BALL_RADIUS,
   ]);
 
   const resetGame = useCallback(() => {
@@ -513,13 +405,11 @@ function App() {
         congratulationsAudioRef.current.currentTime = 0;
       }
 
-      setParticipants([]);
       setWinners([]);
-      setCurrentWinner(null);
+      setCurrentWinners([]);
       setShowConfetti(false);
-      setWinnerBallAnimation(false);
       setBalls([]);
-      setSelectedCategory("");
+      setSelectedPremioId(null);
       setApiError("");
       setIsLoadingRulete(false);
       isSpinningRef.current = false;
@@ -532,7 +422,7 @@ function App() {
         e.key === " " &&
         !isSpinning &&
         !isWaitingForWinner &&
-        participants.length >= 2
+        selectedPremioId !== null
       ) {
         e.preventDefault();
         spinTombola();
@@ -541,7 +431,7 @@ function App() {
 
     window.addEventListener("keydown", handleGlobalKeyPress);
     return () => window.removeEventListener("keydown", handleGlobalKeyPress);
-  }, [participants.length, isSpinning, isWaitingForWinner, spinTombola]);
+  }, [selectedPremioId, isSpinning, isWaitingForWinner, spinTombola]);
 
   useEffect(() => {
     return () => {
@@ -579,7 +469,7 @@ function App() {
 
       <section>
         <div className="container px-2 px-md-4">
-          <div className="text-center mb-1 mb-md-1">
+          <div className="text-center pt-3 pb-3 mb-1 mb-md-1">
             <img
               src={LogoImage}
               className="object-contain logo-image"
@@ -630,32 +520,11 @@ function App() {
                       }}
                     >
                       <div className="position-absolute tombola-inner">
-                        {(isSpinning
-                          ? balls
-                          : participants.map((participant, index) => {
-                              const position = ballPositions[index];
-                              return {
-                                id: participant.id,
-                                x: (position.x / 100) * (TOMBOLA_RADIUS * 2),
-                                y: (position.y / 100) * (TOMBOLA_RADIUS * 2),
-                                color: participant.color,
-                                name: participant.name,
-                              };
-                            })
-                        ).map((ball) => {
-                          const isWinnerBall =
-                            currentWinner && ball.id === currentWinner.id;
-
-                          return (
+                        {isSpinning &&
+                          balls.map((ball) => (
                             <div
                               key={ball.id}
-                              className={`participant-ball ${
-                                isSpinning
-                                  ? ""
-                                  : isWinnerBall && winnerBallAnimation
-                                  ? "animate-ping winner-glow"
-                                  : "animate-pulse"
-                              }`}
+                              className="participant-ball"
                               style={{
                                 backgroundColor: ball.color,
                                 position: "absolute",
@@ -663,20 +532,7 @@ function App() {
                                 top: `${ball.y - BALL_RADIUS}px`,
                                 width: `${BALL_RADIUS * 2}px`,
                                 height: `${BALL_RADIUS * 2}px`,
-                                transform: `${
-                                  isWinnerBall && winnerBallAnimation
-                                    ? "scale(1.5)"
-                                    : "scale(1)"
-                                }`,
-                                zIndex:
-                                  isWinnerBall && winnerBallAnimation ? 10 : 1,
-                                boxShadow:
-                                  isWinnerBall && winnerBallAnimation
-                                    ? `0 0 25px ${ball.color}`
-                                    : "0 5px 10px rgba(0,0,0,0.3)",
-                                transition: isSpinning
-                                  ? "none"
-                                  : "all 0.3s ease",
+                                boxShadow: "0 5px 10px rgba(0,0,0,0.3)",
                               }}
                             >
                               <div className="participant-ball-content">
@@ -685,8 +541,15 @@ function App() {
                                 </span>
                               </div>
                             </div>
-                          );
-                        })}
+                          ))}
+                        {!isSpinning && (
+                          <div className="d-flex align-items-center justify-content-center h-100 text-muted">
+                            <div className="text-center">
+                              <Sparkles size={48} className="mb-2 opacity-50" />
+                              <p className="small mb-0">Selecciona un premio</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div className="tombola-center-icon">
@@ -714,11 +577,11 @@ function App() {
                           <span className="visually-hidden">Cargando...</span>
                         </div>
                         <span className="fs-5 fw-medium">
-                          Procesando el ganador...
+                          Procesando los ganadores...
                         </span>
                       </div>
                       <p className="small text-muted mb-0">
-                        ⏳ El ganador se mostrará en unos segundos
+                        ⏳ Los ganadores se mostrarán en unos segundos
                       </p>
                     </div>
                   )}
@@ -726,12 +589,12 @@ function App() {
                   <button
                     onClick={spinTombola}
                     disabled={
-                      participants.length < 2 ||
+                      selectedPremioId === null ||
                       isSpinning ||
                       isWaitingForWinner
                     }
                     className={`btn w-100 py-3 py-md-4 rounded-4 fw-bold fs-5 fs-md-4 ${
-                      participants.length >= 2 &&
+                      selectedPremioId !== null &&
                       !isSpinning &&
                       !isWaitingForWinner
                         ? "btn-primary btn-glow"
@@ -748,7 +611,7 @@ function App() {
                       {isSpinning
                         ? "¡Girando la Magia!"
                         : isWaitingForWinner
-                        ? "Esperando ganador..."
+                        ? "Esperando ganadores..."
                         : "¡GIRAR TOMBOLA!"}
                     </div>
                   </button>
@@ -765,49 +628,48 @@ function App() {
               </div>
             </div>
 
-            {/* Columna Derecha - Participantes y Ganadores */}
+            {/* Columna Derecha - Premios y Ganadores */}
             <div className="col-12 col-lg-5 order-1 order-lg-2">
               <div className="card shadow-lg border-0 rounded-4 mb-3 mb-md-4">
                 <div className="card-body p-3">
                   <div>
-                    {loadingBoletos && (
+                    {loadingPremios && (
                       <div className="text-center py-3">
                         <div
                           className="spinner-border spinner-border-sm me-2"
                           role="status"
                         ></div>
-                        Cargando boletos...
+                        Cargando premios...
                       </div>
                     )}
 
-                    {boletosError && (
+                    {premiosError && (
                       <div className="alert alert-danger small mb-3">
-                        {boletosError}
+                        {premiosError}
                       </div>
                     )}
 
-                    {Object.keys(categories).length > 0 && (
+                    {premios.length > 0 && (
                       <div>
                         <label className="form-label small fw-medium">
-                          Seleccionar categoría:
+                          Seleccionar premio:
                         </label>
                         <select
-                          value={selectedCategory}
+                          value={selectedPremioId || ""}
                           onChange={(e) =>
-                            loadParticipantsFromCategory(e.target.value)
+                            handlePremioSelection(e.target.value)
                           }
                           disabled={
-                            isSpinning || isWaitingForWinner || loadingBoletos
+                            isSpinning || isWaitingForWinner || loadingPremios
                           }
                           className="form-select form-select-lg"
                         >
-                          <option value="">
-                            -- Selecciona una categoría --
-                          </option>
-                          {Object.entries(categories).map(([id, category]) => (
-                            <option key={id} value={id}>
-                              {category.name} ({category.participants.length}{" "}
-                              participantes activos)
+                          <option value="">-- Selecciona un premio --</option>
+                          {premios.map((premio) => (
+                            <option key={premio.id} value={premio.id}>
+                              {premio.nombre} ({premio.cantidad_ganadores}{" "}
+                              ganador{premio.cantidad_ganadores > 1 ? "es" : ""}
+                              )
                             </option>
                           ))}
                         </select>
@@ -816,7 +678,7 @@ function App() {
                   </div>
                 </div>
               </div>
-              {isLoadingRulete && currentWinner && (
+              {isLoadingRulete && currentWinners.length > 0 && (
                 <div className="alert alert-success border-0 rounded-4 p-3 p-md-4 mb-4 winner-celebration animate-bounce">
                   <div className="d-flex align-items-center justify-content-center gap-2 gap-md-3 mb-3">
                     <Trophy size={window.innerWidth < 576 ? 24 : 32} />
@@ -830,95 +692,67 @@ function App() {
                     <Trophy size={window.innerWidth < 576 ? 24 : 32} />
                   </div>
                   <h3 className="fs-4 fs-md-3 fw-bold mb-2 text-center">
-                    ¡FELICITACIONES!
+                    {currentWinners.length === 1
+                      ? "¡FELICITACIONES!"
+                      : "¡FELICITACIONES A LOS GANADORES!"}
                   </h3>
-                  <p className="fs-3 fs-md-2 fw-bold mb-2 text-center">
-                    {currentWinner.name}
-                  </p>
-
-                  <p className="small text-muted mb-2 text-center">
-                    Boleto: {currentWinner.id}
-                  </p>
-                  <p className="small text-muted mb-2 text-center">
-                    Categoría: {currentWinner.category}
-                  </p>
-
-                  <div className="d-flex align-items-center justify-content-center gap-2 fs-6 fs-md-5">
-                    <span>¡Eres el ganador!</span>
+                  {currentWinners.map((ganador, index) => (
                     <div
-                      className="rounded-circle border border-2 border-white"
-                      style={{
-                        backgroundColor: currentWinner.color,
-                        width: window.innerWidth < 576 ? "12px" : "16px",
-                        height: window.innerWidth < 576 ? "12px" : "16px",
-                      }}
-                    />
-                  </div>
+                      key={ganador.id}
+                      className="mb-3 p-3 bg-white bg-opacity-50 rounded-3"
+                    >
+                      <p className="fs-4 fs-md-3 fw-bold mb-2 text-center">
+                        {ganador.nombre}
+                      </p>
+                      <p className="small text-muted mb-1 text-center">
+                        Participante: {ganador.numero_participante}
+                      </p>
+                      {index < currentWinners.length - 1 && (
+                        <hr className="my-3" />
+                      )}
+                    </div>
+                  ))}
                   <div className="mt-2 small opacity-75 text-center">
                     🌟 ¡Increíble suerte! 🌟
                   </div>
                 </div>
               )}
 
-              {/* Panel de Participantes */}
-              <div className="card shadow-lg border-0 rounded-4 mb-3 mb-lg-4">
-                <div className="card-body p-3 p-md-4">
-                  <div className="d-flex align-items-center gap-2 gap-md-3 mb-3 mb-md-4">
-                    <Users
-                      className="text-primary"
-                      size={window.innerWidth < 576 ? 20 : 24}
-                    />
-                    <h2 className="fs-4 fs-md-3 fw-bold text-dark mb-0 flex-grow-1">
-                      Participantes
-                    </h2>
-                    <span className="badge bg-primary rounded-pill">
-                      {participants.length}
-                    </span>
-                    {selectedCategory && (
-                      <span className="badge bg-info rounded-pill small">
-                        Cat. {selectedCategory}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="participants-list">
-                    {participants.map((participant) => (
-                      <div
-                        key={participant.id}
-                        className="d-flex align-items-center justify-content-between p-2 p-md-3 bg-light rounded-3 mb-2 participant-item-hover"
-                      >
-                        <div className="d-flex align-items-center gap-2 gap-md-3">
-                          <div
-                            className="rounded-circle border border-2 border-white shadow-sm participant-color"
-                            style={{ backgroundColor: participant.color }}
-                          />
-                          <div className="flex-grow-1">
-                            <span className="fw-medium text-dark participant-name d-block">
-                              {participant.name}
+              {/* Panel de Premio Seleccionado */}
+              {selectedPremioId && (
+                <div className="card shadow-lg border-0 rounded-4 mb-3 mb-lg-4">
+                  <div className="card-body p-3 p-md-4">
+                    <div className="d-flex align-items-center gap-2 gap-md-3 mb-3 mb-md-4">
+                      <Trophy
+                        className="text-warning"
+                        size={window.innerWidth < 576 ? 20 : 24}
+                      />
+                      <h2 className="fs-4 fs-md-3 fw-bold text-dark mb-0 flex-grow-1">
+                        Premio Seleccionado
+                      </h2>
+                    </div>
+                    {(() => {
+                      const premio = premios.find(
+                        (p) => p.id === selectedPremioId
+                      );
+                      return premio ? (
+                        <div className="p-3 bg-light rounded-3">
+                          <p className="fw-bold text-dark mb-2">
+                            {premio.nombre}
+                          </p>
+                          <div className="d-flex align-items-center gap-2">
+                            <span className="badge bg-primary">
+                              {premio.cantidad_ganadores} ganador
+                              {premio.cantidad_ganadores > 1 ? "es" : ""}
                             </span>
-
-                            <small className="text-muted">
-                              {participant.id}
-                            </small>
+                            <span className="badge bg-success">Activo</span>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                    {participants.length === 0 && (
-                      <div className="text-center py-4 py-md-5 text-muted">
-                        <Users
-                          className="mb-3 opacity-50"
-                          size={window.innerWidth < 576 ? 48 : 64}
-                        />
-                        <p className="mb-1">No hay participantes aún</p>
-                        <p className="small mb-0">
-                          Selecciona una categoría de boletos
-                        </p>
-                      </div>
-                    )}
+                      ) : null;
+                    })()}
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Panel de Ganadores */}
               <div className="card shadow-lg border-0 rounded-4">
@@ -947,22 +781,11 @@ function App() {
                         </div>
                         <div className="flex-grow-1">
                           <p className="fw-bold text-dark mb-1">
-                            {winner.name}
+                            {winner.nombre}
                           </p>
-                          <div className="d-flex align-items-center gap-2">
-                            <div
-                              className="rounded-circle border border-white shadow-sm winner-color"
-                              style={{ backgroundColor: winner.color }}
-                            />
+                          <div className="d-flex align-items-center gap-2 flex-wrap">
                             <span className="small text-muted">
-                              Ronda {winners.length - index}
-                            </span>
-
-                            <span className="small text-muted">
-                              • {winner.id}
-                            </span>
-                            <span className="small text-muted">
-                              Categoría: {winner.category}
+                              Participante: {winner.numero_participante}
                             </span>
                           </div>
                         </div>

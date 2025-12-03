@@ -744,8 +744,41 @@ body {
   }
 }
 
+.alert-success {
+  --bs-alert-color: rgb(255 255 255) !important;
+  --bs-alert-bg: rgb(205 4 10) !important;
+  --bs-alert-border-color: rgb(205 4 10) !important;
+  --bs-alert-link-color: rgb(205 4 10) !important;
+}
+.btn-primary {
+  --bs-btn-color: rgb(255 255 255) !important;
+  --bs-btn-bg: rgb(205 4 10) !important;
+  --bs-btn-border-color: rgb(205 4 10) !important;
+  --bs-btn-hover-color: rgb(255 255 255) !important;
+  --bs-btn-hover-bg: rgb(205 4 10) !important;
+  --bs-btn-hover-border-color: rgb(205 4 10) !important;
+  --bs-btn-active-color: rgb(255 255 255) !important;
+  --bs-btn-active-bg: rgb(205 4 10) !important;
+  --bs-btn-active-border-color: rgb(205 4 10) !important;
+}
+.btn:hover {
+  color: rgb(255 255 255) !important;
+  background-color: rgb(205 4 10) !important;
+  border-color: rgb(205 4 10) !important;
+}
+
+.text-muted {
+  --bs-text-opacity: 1 !important;
+  color: rgb(255 255 255) !important;
+}
+
+.btn-glow:hover {
+  box-shadow: 0 8px 25px rgb(205 4 10 / 54%) !important;
+  transform: translateY(-2px);
+}
+
 .logo-image {
-  width: 50%;
+  width: 35%;
 
   /* Móviles medianos (576px a 767px) */
   @media (min-width: 576px) and (max-width: 767.98px) {
