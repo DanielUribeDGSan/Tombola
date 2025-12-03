@@ -637,8 +637,23 @@ function App() {
                                     backgroundPosition: "center",
                                     width: "100%",
                                     height: "100%",
+                                    position: "relative",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
                                   }}
-                                ></div>
+                                >
+                                  <img
+                                    src={LogoImage}
+                                    alt="logo"
+                                    style={{
+                                      width: "100%",
+                                      height: "100%",
+                                      objectFit: "contain",
+                                      opacity: 0.95,
+                                    }}
+                                  />
+                                </div>
                                 {/* Moño superior */}
                                 <div className="gift-bow">
                                   <div
