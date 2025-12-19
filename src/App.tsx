@@ -5,10 +5,55 @@ import { Autocomplete, TextField } from "@mui/material";
 import confettiAnimation from "./assets/confeti/confeti.json";
 import AudioRuleta from "./assets/mp3/ruleta1.mp3";
 import AudioFelicitacion from "./assets/mp3/congratulations.mp3";
-import { boletosService, type Premio, type Ganador } from "./api/fetch";
 
-import BackgroundImage from "./assets/img/fondo.png";
-import LogoImage from "./assets/img/logo.png";
+// Datos estáticos de regalos
+const REGALOS = [
+  { id: 1, name: "Aguinaldo 1" },
+  { id: 2, name: "Aguinaldo 2" },
+  { id: 3, name: "Aguinaldo 3" },
+  { id: 4, name: "Aguinaldo 4" },
+  { id: 5, name: "Aguinaldo 5" },
+  { id: 6, name: "Changuito lanza agua" },
+  { id: 7, name: "Tetera" },
+  { id: 8, name: "Jugetes" },
+  { id: 9, name: "Bocina" },
+  { id: 10, name: "Cafetera" },
+  { id: 11, name: "Reloj inteligente" },
+];
+
+// Datos estáticos de ganadores
+const GANADORES_INICIALES = [
+  { id: 1, name: "Luz María" },
+  { id: 2, name: "Francisco Uribe" },
+  { id: 3, name: "Claudia Uribe" },
+  { id: 4, name: "Salvador Uribe" },
+  { id: 5, name: "Rodrigo Calderón" },
+  { id: 6, name: "Vero" },
+  { id: 7, name: "Rodrigo Uribe" },
+  { id: 8, name: "Matías" },
+  { id: 9, name: "Diego" },
+  { id: 10, name: "Mariana" },
+  { id: 11, name: "Javier Uribe" },
+  { id: 12, name: "Raquel" },
+  { id: 13, name: "Kevin" },
+  { id: 14, name: "Brayan" },
+  { id: 15, name: "Sergio Uribe" },
+  { id: 16, name: "Daniel Uribe" },
+  { id: 17, name: "Adilene" },
+];
+
+interface Premio {
+  id: number;
+  nombre: string;
+  cantidad_ganadores: number;
+  activo: boolean;
+}
+
+interface Ganador {
+  id: number;
+  nombre: string;
+  numero_participante: string;
+}
 
 interface Ball {
   id: string;
@@ -18,6 +63,7 @@ interface Ball {
   vy: number;
   radius: number;
   color: string;
+  type: string;
   name: string;
 }
 
@@ -28,28 +74,36 @@ interface GanadorConPremio extends Ganador {
 
 function App() {
   const SPIN_DURATION = 9000;
-  const WINNER_WAIT_DURATION = 1000; // 4 segundos adicionales para mostrar el ganador
+  const WINNER_WAIT_DURATION = 1000;
   const TOMBOLA_RADIUS = 180 + 30;
   const BALL_RADIUS = 18;
-  const GRAVITY = 0.15;
-  const FRICTION = 0.985;
-  const BOUNCE_DAMPING = 0.9;
+  const GRAVITY = 0.12;
+  const FRICTION = 0.98;
+  const BOUNCE_DAMPING = 0.75;
 
   const [isSpinning, setIsSpinning] = useState(false);
-  const [isWaitingForWinner, setIsWaitingForWinner] = useState(false); // Nuevo estado
+  const [isWaitingForWinner, setIsWaitingForWinner] = useState(false);
   const [currentWinners, setCurrentWinners] = useState<Ganador[]>([]);
   const [currentPremioNombre, setCurrentPremioNombre] = useState<string>("");
   const [winners, setWinners] = useState<GanadorConPremio[]>([]);
   const [showConfetti, setShowConfetti] = useState(false);
   const [balls, setBalls] = useState<Ball[]>([]);
 
-  // Nuevos estados para premios
-  const [premios, setPremios] = useState<Premio[]>([]);
+  // Estados para premios (mutable para poder quitar premios ganados)
+  const [premios, setPremios] = useState<Premio[]>(
+    REGALOS.map((regalo) => ({
+      id: regalo.id,
+      nombre: regalo.name,
+      cantidad_ganadores: 1, // Cada premio tiene 1 ganador
+      activo: true,
+    }))
+  );
   const [selectedPremioId, setSelectedPremioId] = useState<number | null>(null);
-  const [loadingPremios, setLoadingPremios] = useState(false);
-  const [premiosError, setPremiosError] = useState<string>("");
+  const [ganadoresDisponibles, setGanadoresDisponibles] = useState<
+    typeof GANADORES_INICIALES
+  >([...GANADORES_INICIALES]);
 
-  const [apiError, setApiError] = useState<string>(""); // Nuevo estado para errores de API
+  const [apiError, setApiError] = useState<string>("");
 
   const tombolaRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -57,115 +111,135 @@ function App() {
   const animationRef = useRef<number>();
   const isSpinningRef = useRef(false);
 
-  // Ref para evitar peticiones duplicadas
-  const isLoadingPremiosRef = useRef(false);
-
-  // Ref para mantener el premio seleccionado actual sin causar re-renders
-  const selectedPremioIdRef = useRef<number | null>(null);
-
-  // Ref para evitar limpiar ganadores cuando se recargan premios automáticamente
-  const isReloadingPremiosRef = useRef(false);
-
-  // Actualizar ref cuando cambia selectedPremioId y limpiar estados relacionados
-  useEffect(() => {
-    selectedPremioIdRef.current = selectedPremioId;
-
-    // Solo limpiar ganadores si NO estamos recargando premios automáticamente
-    // y el usuario explícitamente deseleccionó el premio
-    if (
-      (selectedPremioId === null || selectedPremioId === undefined) &&
-      !isReloadingPremiosRef.current
-    ) {
-      setCurrentWinners([]);
-      setCurrentPremioNombre("");
-      setApiError(""); // Limpiar errores cuando se deselecciona
-    }
-  }, [selectedPremioId]);
-
-  // Cargar premios desde la API
-  const loadPremios = useCallback(async (silent = false) => {
-    // Evitar peticiones duplicadas
-    if (isLoadingPremiosRef.current) {
-      return;
-    }
-
-    isLoadingPremiosRef.current = true;
-
-    if (!silent) {
-      setLoadingPremios(true);
-    }
-    setPremiosError("");
-
-    try {
-      const response = await boletosService.fetchPremios();
-
-      if (response.success && response.data) {
-        // Filtrar solo premios activos
-        const premiosActivos = response.data.filter((premio) => premio.activo);
-        setPremios(premiosActivos);
-        setPremiosError(""); // Limpiar errores previos si hay éxito
-
-        // Validar que el premio seleccionado siga activo después de recargar
-        const premioIdActual = selectedPremioIdRef.current;
-        if (premioIdActual !== null && premioIdActual !== undefined) {
-          const premioSeleccionadoExiste = premiosActivos.some(
-            (premio) => premio.id === premioIdActual
-          );
-          // Si el premio seleccionado ya no está activo o no existe, limpiar la selección
-          // pero NO limpiar los ganadores actuales si están siendo mostrados
-          if (!premioSeleccionadoExiste) {
-            isReloadingPremiosRef.current = true;
-            setSelectedPremioId(null);
-            setApiError("");
-            // Resetear la bandera después de un breve delay
-            setTimeout(() => {
-              isReloadingPremiosRef.current = false;
-            }, 100);
-          }
-        }
-      } else if (response.error) {
-        // Solo mostrar error si existe y no es un timeout
-        setPremiosError(response.error);
-      } else {
-        // Si no hay error explícito, limpiar errores previos
-        setPremiosError("");
-      }
-    } catch (error) {
-      setPremiosError("Error de conexión al cargar premios");
-      console.error("Error loading premios:", error);
-    } finally {
-      if (!silent) {
-        setLoadingPremios(false);
-      }
-      isLoadingPremiosRef.current = false;
-    }
-  }, []);
-
-  // Cargar premios al montar el componente (solo una vez)
-  useEffect(() => {
-    loadPremios();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Solo ejecutar una vez al montar
-
   // Función para seleccionar un premio
   const handlePremioSelection = useCallback(
     (premioId: string) => {
       if (!isSpinning && !isWaitingForWinner) {
-        // Si se selecciona el valor vacío, establecer como null explícitamente
         const id = premioId && premioId !== "" ? parseInt(premioId) : null;
 
-        // Si se deselecciona el premio explícitamente, limpiar ganadores
         if (!id || id === null) {
-          isReloadingPremiosRef.current = false; // Asegurar que no estamos en modo recarga
           setCurrentWinners([]);
           setCurrentPremioNombre("");
         }
 
         setSelectedPremioId(id);
-        setApiError(""); // Limpiar errores al cambiar selección
+        setApiError("");
       }
     },
     [isSpinning, isWaitingForWinner]
+  );
+
+  // Función para manejar cuando un ganador no está presente
+  const handleGanadorNoEsta = useCallback(() => {
+    if (currentWinners.length === 0) {
+      console.warn("No hay ganadores actuales para eliminar");
+      return;
+    }
+
+    // Obtener el premioId del ganador más reciente que coincida
+    // Buscar desde el final (más reciente) hacia el inicio
+    let premioIdDelGanador: number | undefined;
+
+    for (let i = winners.length - 1; i >= 0; i--) {
+      const w = winners[i];
+      if (currentWinners.some((cw) => cw.id === w.id)) {
+        premioIdDelGanador = w.premioId;
+        break;
+      }
+    }
+
+    if (!premioIdDelGanador) {
+      console.error("No se pudo encontrar el premioId del ganador", {
+        currentWinners,
+        winnersLength: winners.length,
+        winners: winners.slice(-5), // últimos 5 para debug
+      });
+      return;
+    }
+
+    console.log("Eliminando ganador y reactivando premio", {
+      premioId: premioIdDelGanador,
+      ganadoresIds: currentWinners.map((cw) => cw.id),
+    });
+
+    // Remover ganadores de la lista histórica (winners)
+    setWinners((prev) => {
+      const nuevos = prev.filter(
+        (w) =>
+          !(
+            w.premioId === premioIdDelGanador &&
+            currentWinners.some((cw) => cw.id === w.id)
+          )
+      );
+      console.log("Winners actualizados", {
+        antes: prev.length,
+        despues: nuevos.length,
+      });
+      return nuevos;
+    });
+
+    // Reactivar el premio
+    setPremios((prev) => {
+      const nuevos = prev.map((premio) =>
+        premio.id === premioIdDelGanador ? { ...premio, activo: true } : premio
+      );
+      const premioReactivado = nuevos.find((p) => p.id === premioIdDelGanador);
+      console.log("Premio reactivado", premioReactivado);
+      return nuevos;
+    });
+
+    // Limpiar estados actuales
+    setCurrentWinners([]);
+    setCurrentPremioNombre("");
+    setSelectedPremioId(null);
+    setApiError("");
+  }, [currentWinners, winners]);
+
+  // Función para seleccionar ganadores aleatoriamente
+  const seleccionarGanadores = useCallback(
+    (premioId: number): Ganador[] => {
+      const RELOJ_INTELIGENTE_ID = 11;
+      const ADILENE_ID = 17;
+
+      // Si es el reloj inteligente, solo Adilene puede ganar
+      if (premioId === RELOJ_INTELIGENTE_ID) {
+        const adilene = ganadoresDisponibles.find((g) => g.id === ADILENE_ID);
+        if (adilene) {
+          return [
+            {
+              id: adilene.id,
+              nombre: adilene.name,
+              numero_participante: adilene.id.toString(),
+            },
+          ];
+        }
+        return [];
+      }
+
+      // Para otros premios, Adilene NO debe estar disponible
+      const ganadoresElegibles = ganadoresDisponibles.filter(
+        (g) => g.id !== ADILENE_ID
+      );
+
+      if (ganadoresElegibles.length === 0) {
+        return [];
+      }
+
+      // Seleccionar un ganador aleatorio
+      const indiceAleatorio = Math.floor(
+        Math.random() * ganadoresElegibles.length
+      );
+      const ganadorSeleccionado = ganadoresElegibles[indiceAleatorio];
+
+      return [
+        {
+          id: ganadorSeleccionado.id,
+          nombre: ganadorSeleccionado.name,
+          numero_participante: ganadorSeleccionado.id.toString(),
+        },
+      ];
+    },
+    [ganadoresDisponibles]
   );
 
   // Detectar colisiones entre bolas
@@ -189,12 +263,30 @@ function App() {
           ball2.x += separateX * 1.5;
           ball2.y += separateY * 1.5;
 
-          const tempVx = ball1.vx;
-          const tempVy = ball1.vy;
-          ball1.vx = ball2.vx * BOUNCE_DAMPING + (Math.random() - 0.5) * 2;
-          ball1.vy = ball2.vy * BOUNCE_DAMPING + (Math.random() - 0.5) * 2;
-          ball2.vx = tempVx * BOUNCE_DAMPING + (Math.random() - 0.5) * 2;
-          ball2.vy = tempVy * BOUNCE_DAMPING + (Math.random() - 0.5) * 2;
+          // Calcular velocidad relativa
+          const relativeVx = ball2.vx - ball1.vx;
+          const relativeVy = ball2.vy - ball1.vy;
+          const relativeSpeed =
+            relativeVx * (dx / distance) + relativeVy * (dy / distance);
+
+          // Solo procesar colisión si se están acercando
+          if (relativeSpeed < 0) {
+            const impulse = 2 * relativeSpeed;
+            ball1.vx += (dx / distance) * impulse * BOUNCE_DAMPING;
+            ball1.vy += (dy / distance) * impulse * BOUNCE_DAMPING;
+            ball2.vx -= (dx / distance) * impulse * BOUNCE_DAMPING;
+            ball2.vy -= (dy / distance) * impulse * BOUNCE_DAMPING;
+
+            // Agregar variación aleatoria MUY fuerte en todas las direcciones después de colisión
+            const angle1 = Math.random() * Math.PI * 2;
+            const angle2 = Math.random() * Math.PI * 2;
+            const strength1 = 3 + Math.random() * 3;
+            const strength2 = 3 + Math.random() * 3;
+            ball1.vx += Math.cos(angle1) * strength1;
+            ball1.vy += Math.sin(angle1) * strength1;
+            ball2.vx += Math.cos(angle2) * strength2;
+            ball2.vy += Math.sin(angle2) * strength2;
+          }
         }
       }
     }
@@ -210,16 +302,58 @@ function App() {
 
         const centerX = TOMBOLA_RADIUS;
         const centerY = TOMBOLA_RADIUS;
-        const centrifugalForce = 0.8;
 
         const dxFromCenter = newBall.x - centerX;
         const dyFromCenter = newBall.y - centerY;
+        const distanceFromCenter = Math.sqrt(
+          dxFromCenter * dxFromCenter + dyFromCenter * dyFromCenter
+        );
+        const normalizedDistance = distanceFromCenter / TOMBOLA_RADIUS;
 
-        newBall.vx += (dxFromCenter / TOMBOLA_RADIUS) * centrifugalForce;
-        newBall.vy += (dyFromCenter / TOMBOLA_RADIUS) * centrifugalForce;
+        // Fuerza constante hacia el centro cuando están lejos (fuerza centrípeta)
+        // Aplicar SIEMPRE que estén lejos del centro para mantener movimiento hacia el centro
+        if (distanceFromCenter > 15) {
+          const centripetalForce = 0.6 * (0.5 + normalizedDistance * 0.5);
+          newBall.vx -= (dxFromCenter / distanceFromCenter) * centripetalForce;
+          newBall.vy -= (dyFromCenter / distanceFromCenter) * centripetalForce;
+        }
 
-        newBall.vx += (Math.random() - 0.5) * 1.5;
-        newBall.vy += (Math.random() - 0.5) * 1.5;
+        // Si está muy lejos del centro, fuerza MUY fuerte hacia el centro
+        if (distanceFromCenter > TOMBOLA_RADIUS * 0.5) {
+          const strongCentripetalForce = 0.8 + normalizedDistance * 0.4;
+          newBall.vx -=
+            (dxFromCenter / distanceFromCenter) * strongCentripetalForce;
+          newBall.vy -=
+            (dyFromCenter / distanceFromCenter) * strongCentripetalForce;
+        }
+
+        // Agregar variación aleatoria constante y fuerte en todas las direcciones
+        const randomAngle = Math.random() * Math.PI * 2;
+        const randomStrength = 1.5 + Math.random() * 1.5;
+        newBall.vx += Math.cos(randomAngle) * randomStrength;
+        newBall.vy += Math.sin(randomAngle) * randomStrength;
+
+        // Rebotes desde el centro: más frecuentes y fuertes
+        // Si está cerca del centro, SIEMPRE agregar fuerza para rebotar hacia afuera
+        if (distanceFromCenter < TOMBOLA_RADIUS * 0.6) {
+          const centerBounceAngle = Math.random() * Math.PI * 2;
+          // Fuerza más fuerte cuanto más cerca del centro
+          const proximityFactor =
+            1 - distanceFromCenter / (TOMBOLA_RADIUS * 0.6);
+          const centerBounceStrength =
+            (3 + Math.random() * 3) * (0.5 + proximityFactor);
+          newBall.vx += Math.cos(centerBounceAngle) * centerBounceStrength;
+          newBall.vy += Math.sin(centerBounceAngle) * centerBounceStrength;
+        }
+
+        // Rebote periódico desde el centro para mantener distribución
+        // Cada cierto tiempo, empujar desde el centro sin importar la distancia
+        if (Math.random() > 0.7) {
+          const periodicBounceAngle = Math.random() * Math.PI * 2;
+          const periodicBounceStrength = 2 + Math.random() * 2;
+          newBall.vx += Math.cos(periodicBounceAngle) * periodicBounceStrength;
+          newBall.vy += Math.sin(periodicBounceAngle) * periodicBounceStrength;
+        }
 
         prevBalls.forEach((otherBall) => {
           if (otherBall.id !== ball.id) {
@@ -227,15 +361,64 @@ function App() {
             const dy = newBall.y - otherBall.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
 
-            if (distance < 80) {
-              const separationForce = 0.3;
+            if (distance < 55 && distance > 0) {
+              const separationForce = 1.5;
               newBall.vx += (dx / distance) * separationForce;
               newBall.vy += (dy / distance) * separationForce;
+
+              // Agregar impulso aleatorio adicional en colisiones
+              const collisionAngle = Math.random() * Math.PI * 2;
+              const collisionStrength = 1 + Math.random() * 1.5;
+              newBall.vx += Math.cos(collisionAngle) * collisionStrength;
+              newBall.vy += Math.sin(collisionAngle) * collisionStrength;
             }
           }
         });
 
-        newBall.vy += GRAVITY;
+        // Gravedad variable: si está en la parte superior, empujar hacia abajo más fuerte
+        // Si está en la parte inferior, empujar menos o invertir
+        const isInUpperHalf = newBall.y < centerY;
+        const isInLowerHalf = newBall.y > centerY;
+
+        if (isInUpperHalf) {
+          // Si está arriba, aplicar MUCHO más gravedad para que baje
+          newBall.vy += GRAVITY * 2.5;
+          // También agregar impulso aleatorio fuerte hacia abajo y lados
+          newBall.vy += 1.0 + Math.random() * 1.0;
+          newBall.vx += (Math.random() - 0.5) * 2.0;
+        } else if (isInLowerHalf && distanceFromCenter > TOMBOLA_RADIUS * 0.3) {
+          // Si está abajo y lejos del centro, empujar hacia arriba
+          newBall.vy -= GRAVITY * 0.8;
+        } else {
+          // Gravedad normal
+          newBall.vy += GRAVITY;
+        }
+
+        // Si está muy arriba, agregar impulso MUY fuerte hacia abajo y hacia el centro
+        if (newBall.y < centerY - 20) {
+          newBall.vy += 2.5 + Math.random() * 1.5;
+          // Impulso fuerte hacia el centro
+          if (distanceFromCenter > 15) {
+            newBall.vx -= (dxFromCenter / distanceFromCenter) * 1.5;
+            newBall.vy -= (dyFromCenter / distanceFromCenter) * 1.5;
+          }
+          // Impulso aleatorio adicional hacia abajo
+          newBall.vy += 1.0 + Math.random() * 1.0;
+        }
+
+        // Si está en la parte superior (arriba del 30% superior), empujar constantemente hacia abajo
+        if (newBall.y < centerY - 10) {
+          newBall.vy += 0.8 + Math.random() * 0.5;
+        }
+
+        // Si está en los bordes (cerca del perímetro), empujar más fuerte hacia el centro
+        if (distanceFromCenter > TOMBOLA_RADIUS * 0.7) {
+          const edgeCentripetalForce = 1.0;
+          newBall.vx -=
+            (dxFromCenter / distanceFromCenter) * edgeCentripetalForce;
+          newBall.vy -=
+            (dyFromCenter / distanceFromCenter) * edgeCentripetalForce;
+        }
 
         newBall.vx *= FRICTION;
         newBall.vy *= FRICTION;
@@ -243,9 +426,6 @@ function App() {
         newBall.x += newBall.vx;
         newBall.y += newBall.vy;
 
-        const distanceFromCenter = Math.sqrt(
-          dxFromCenter * dxFromCenter + dyFromCenter * dyFromCenter
-        );
         const maxDistance = TOMBOLA_RADIUS - newBall.radius - 8;
 
         if (distanceFromCenter > maxDistance) {
@@ -260,8 +440,17 @@ function App() {
           newBall.vx = (newBall.vx - 2 * dotProduct * normalX) * BOUNCE_DAMPING;
           newBall.vy = (newBall.vy - 2 * dotProduct * normalY) * BOUNCE_DAMPING;
 
-          newBall.vx += (Math.random() - 0.5) * 3;
-          newBall.vy += (Math.random() - 0.5) * 3;
+          // Agregar variación aleatoria MUY fuerte en el rebote para direcciones variadas
+          const bounceAngle = Math.random() * Math.PI * 2;
+          const bounceStrength = 4 + Math.random() * 4;
+          newBall.vx += Math.cos(bounceAngle) * bounceStrength;
+          newBall.vy += Math.sin(bounceAngle) * bounceStrength;
+
+          // Agregar un segundo impulso aleatorio para más variación
+          const secondBounceAngle = Math.random() * Math.PI * 2;
+          const secondBounceStrength = 2 + Math.random() * 2;
+          newBall.vx += Math.cos(secondBounceAngle) * secondBounceStrength;
+          newBall.vy += Math.sin(secondBounceAngle) * secondBounceStrength;
         }
 
         return newBall;
@@ -328,30 +517,29 @@ function App() {
     setIsSpinning(true);
     isSpinningRef.current = true;
 
-    // Crear regalos genéricos para la animación (más cantidad para simular más elementos)
+    // Crear adornos navideños para la animación
     setBalls((prevBalls) => {
       if (prevBalls.length === 0) {
-        // Aumentar a 50 regalos para simular más cantidad
-        const giftColors = [
-          "#EF4444", // Rojo
-          "#F97316", // Naranja
+        // Colores navideños realistas
+        const christmasColors = [
+          "#DC2626", // Rojo navideño
+          "#16A34A", // Verde navideño
+          "#FBBF24", // Dorado
+          "#E5E7EB", // Plateado
+          "#1E40AF", // Azul navideño
+          "#DC2626", // Rojo
+          "#16A34A", // Verde
           "#F59E0B", // Ámbar
-          "#84CC16", // Lima
-          "#22C55E", // Verde
-          "#06B6D4", // Cyan
-          "#3B82F6", // Azul
-          "#8B5CF6", // Violeta
+          "#7C3AED", // Púrpura
           "#EC4899", // Rosa
-          "#F43F5E", // Rose
-          "#10B981", // Esmeralda
-          "#14B8A6", // Teal
-          "#6366F1", // Índigo
-          "#A855F7", // Púrpura
-          "#F472B6", // Rosa claro
-          "#FB7185", // Rose claro
+          "#06B6D4", // Cyan
+          "#F97316", // Naranja
         ];
 
-        return Array.from({ length: 50 }, (_, index) => {
+        // Tipos de formas navideñas
+        const ornamentTypes = ["sphere", "cookie", "star", "bell", "snowflake"];
+
+        return Array.from({ length: 40 }, (_, index) => {
           const angle = (index * 137.5) % 360;
           const radius = 20 + (index % 5) * 10;
           const centerX = TOMBOLA_RADIUS;
@@ -359,23 +547,52 @@ function App() {
           const x = centerX + Math.cos((angle * Math.PI) / 180) * radius;
           const y = centerY + Math.sin((angle * Math.PI) / 180) * radius;
 
+          // Velocidades iniciales más variadas y lentas en todas las direcciones
+          const initialAngle = Math.random() * Math.PI * 2;
+          const initialSpeed = 5 + Math.random() * 8;
+
           return {
-            id: `gift-${index}`,
+            id: `ornament-${index}`,
             x,
             y,
-            vx: (Math.random() - 0.5) * 15 + Math.cos(index * 2) * 5,
-            vy: (Math.random() - 0.5) * 15 + Math.sin(index * 2) * 5,
+            vx: Math.cos(initialAngle) * initialSpeed,
+            vy: Math.sin(initialAngle) * initialSpeed,
             radius: BALL_RADIUS,
-            color: giftColors[index % giftColors.length],
+            color: christmasColors[index % christmasColors.length],
+            type: ornamentTypes[index % ornamentTypes.length],
             name: String.fromCharCode(65 + (index % 26)),
           };
         });
       }
-      return prevBalls.map((ball, index) => ({
-        ...ball,
-        vx: (Math.random() - 0.5) * 15 + Math.cos(index * 2) * 5,
-        vy: (Math.random() - 0.5) * 15 + Math.sin(index * 2) * 5,
-      }));
+      const christmasColors = [
+        "#DC2626",
+        "#16A34A",
+        "#FBBF24",
+        "#E5E7EB",
+        "#1E40AF",
+        "#DC2626",
+        "#16A34A",
+        "#F59E0B",
+        "#7C3AED",
+        "#EC4899",
+        "#06B6D4",
+        "#F97316",
+      ];
+      const ornamentTypes = ["sphere", "cookie", "star", "bell", "snowflake"];
+
+      return prevBalls.map((ball, index) => {
+        // Velocidades variadas en todas las direcciones
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 5 + Math.random() * 8;
+
+        return {
+          ...ball,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          color: christmasColors[index % christmasColors.length],
+          type: ornamentTypes[index % ornamentTypes.length],
+        };
+      });
     });
 
     if (tombolaRef.current) {
@@ -384,7 +601,7 @@ function App() {
     }
 
     // Después del tiempo de giro, obtener los ganadores
-    setTimeout(async () => {
+    setTimeout(() => {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
@@ -392,92 +609,81 @@ function App() {
 
       isSpinningRef.current = false;
       setIsSpinning(false);
-      setIsWaitingForWinner(true); // Mostrar estado de espera
+      setIsWaitingForWinner(true);
 
       if (tombolaRef.current) {
         tombolaRef.current.style.transform = "rotate(0deg)";
         tombolaRef.current.style.transition = "";
       }
 
-      try {
-        if (selectedPremioId) {
-          // Usar el servicio API para obtener los ganadores
-          const response = await boletosService.seleccionarGanadores(
-            selectedPremioId
+      if (selectedPremioId) {
+        // Seleccionar ganadores usando la lógica local
+        const ganadores = seleccionarGanadores(selectedPremioId);
+
+        if (ganadores.length === 0) {
+          setIsWaitingForWinner(false);
+          setApiError("No hay ganadores disponibles para este premio");
+          return;
+        }
+
+        // Esperar antes de mostrar los ganadores
+        setTimeout(() => {
+          setIsWaitingForWinner(false);
+          setCurrentWinners(ganadores);
+
+          // Obtener el nombre del premio seleccionado
+          const premioSeleccionado = premios.find(
+            (p) => p.id === selectedPremioId
+          );
+          const nombrePremio = premioSeleccionado?.nombre || "";
+          setCurrentPremioNombre(nombrePremio);
+
+          // Guardar el premioId antes de limpiarlo
+          const premioIdGanado = selectedPremioId;
+
+          // Guardar ganadores con información del premio
+          const ganadoresConPremio: GanadorConPremio[] = ganadores.map(
+            (ganador) => ({
+              ...ganador,
+              premioNombre: nombrePremio,
+              premioId: premioIdGanado || undefined,
+            })
+          );
+          setWinners((prev) => [...prev, ...ganadoresConPremio]);
+
+          // Remover ganadores de la lista de disponibles
+          setGanadoresDisponibles((prev) =>
+            prev.filter((g) => !ganadores.some((gan) => gan.id === g.id))
           );
 
-          if (response.success && response.data && response.data.ganadores) {
-            const ganadores = response.data.ganadores;
+          // Desactivar el premio ganado
+          setPremios((prev) =>
+            prev.map((premio) =>
+              premio.id === premioIdGanado
+                ? { ...premio, activo: false }
+                : premio
+            )
+          );
 
-            if (ganadores.length === 0) {
-              throw new Error("No se obtuvieron ganadores");
-            }
+          // NO limpiar la selección del premio todavía, se limpiará cuando se haga click en "No está" o cuando se reinicie
 
-            // Esperar antes de mostrar los ganadores
-            setTimeout(async () => {
-              setIsWaitingForWinner(false);
-              setCurrentWinners(ganadores);
+          setShowConfetti(true);
 
-              // Obtener el nombre del premio seleccionado
-              const premioSeleccionado = premios.find(
-                (p) => p.id === selectedPremioId
+          if (congratulationsAudioRef.current) {
+            congratulationsAudioRef.current.currentTime = 0;
+            congratulationsAudioRef.current.play().catch((error) => {
+              console.log(
+                "No se pudo reproducir el audio de felicitación:",
+                error
               );
-              const nombrePremio = premioSeleccionado?.nombre || "";
-              setCurrentPremioNombre(nombrePremio);
-
-              // Guardar ganadores con información del premio
-              const ganadoresConPremio: GanadorConPremio[] = ganadores.map(
-                (ganador) => ({
-                  ...ganador,
-                  premioNombre: nombrePremio,
-                  premioId: selectedPremioId || undefined,
-                })
-              );
-              setWinners((prev) => [...prev, ...ganadoresConPremio]);
-
-              setShowConfetti(true);
-
-              if (congratulationsAudioRef.current) {
-                congratulationsAudioRef.current.currentTime = 0;
-                congratulationsAudioRef.current.play().catch((error) => {
-                  console.log(
-                    "No se pudo reproducir el audio de felicitación:",
-                    error
-                  );
-                });
-              }
-
-              // Recargar premios después de obtener ganadores para actualizar lista
-              // y verificar que el premio seleccionado siga activo
-              try {
-                await loadPremios(true); // true = silent, no mostrar loading
-              } catch (error) {
-                console.error(
-                  "Error al recargar premios después del giro:",
-                  error
-                );
-              }
-
-              // Solo quitar confetti después de 5 segundos
-              setTimeout(() => {
-                setShowConfetti(false);
-              }, 5000);
-            }, WINNER_WAIT_DURATION);
-          } else {
-            throw new Error(
-              response.error ||
-                "Error al seleccionar ganadores desde el servidor"
-            );
+            });
           }
-        }
-      } catch (error) {
-        console.error("Error al obtener ganadores:", error);
-        setIsWaitingForWinner(false);
-        setApiError(
-          error instanceof Error
-            ? error.message
-            : "Error desconocido al obtener ganadores"
-        );
+
+          // Solo quitar confetti después de 5 segundos
+          setTimeout(() => {
+            setShowConfetti(false);
+          }, 5000);
+        }, WINNER_WAIT_DURATION);
       }
     }, SPIN_DURATION);
   }, [
@@ -487,7 +693,7 @@ function App() {
     premios,
     SPIN_DURATION,
     WINNER_WAIT_DURATION,
-    loadPremios,
+    seleccionarGanadores,
     TOMBOLA_RADIUS,
     BALL_RADIUS,
   ]);
@@ -509,6 +715,16 @@ function App() {
       setBalls([]);
       setSelectedPremioId(null);
       setApiError("");
+      setGanadoresDisponibles([...GANADORES_INICIALES]);
+      // Reactivar todos los premios
+      setPremios(
+        REGALOS.map((regalo) => ({
+          id: regalo.id,
+          nombre: regalo.name,
+          cantidad_ganadores: 1,
+          activo: true,
+        }))
+      );
       isSpinningRef.current = false;
     }
   }, [isSpinning, isWaitingForWinner]);
@@ -544,14 +760,7 @@ function App() {
   }, []);
 
   return (
-    <div
-      className="min-h-screen bg-gradient-to-br from-orange-400 via-red-500 to-purple-600  pb-5"
-      style={{
-        backgroundImage: `url('${BackgroundImage}') `,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
-    >
+    <div className="min-h-screen bg-gradient-to-br from-orange-400 via-red-500 to-purple-600  pb-5">
       {/* Lottie Confetti Animation */}
       {showConfetti && (
         <div className="confetti-overlay">
@@ -565,14 +774,14 @@ function App() {
       )}
 
       <section>
-        <div className="container px-2 px-md-4">
-          <div className="text-center pt-3 pb-3 mb-1 mb-md-1">
+        <div className="container px-2 px-md-4 pt-5">
+          {/* <div className="text-center pt-3 pb-3 mb-1 mb-md-1">
             <img
               src={LogoImage}
               className="object-contain logo-image"
               alt="tombola logo"
             />
-          </div>
+          </div> */}
 
           {/* Mostrar error de API si existe */}
           {apiError && (
@@ -619,86 +828,51 @@ function App() {
                             balls.map((ball) => (
                               <div
                                 key={ball.id}
-                                className="gift-box"
-                                style={{
-                                  position: "absolute",
-                                  left: `${ball.x - BALL_RADIUS}px`,
-                                  top: `${ball.y - BALL_RADIUS}px`,
-                                  width: `${BALL_RADIUS * 2}px`,
-                                  height: `${BALL_RADIUS * 2}px`,
-                                }}
+                                className={`christmas-ornament christmas-ornament-${ball.type}`}
+                                style={
+                                  {
+                                    position: "absolute",
+                                    left: `${ball.x - BALL_RADIUS}px`,
+                                    top: `${ball.y - BALL_RADIUS}px`,
+                                    width: `${BALL_RADIUS * 2}px`,
+                                    height: `${BALL_RADIUS * 2}px`,
+                                    transform: `translate3d(0, 0, 0)`,
+                                    "--ornament-color": ball.color,
+                                  } as React.CSSProperties
+                                }
                               >
-                                {/* Caja del regalo */}
-                                <div
-                                  className="gift-box-body"
-                                  style={{
-                                    backgroundImage: `url('${BackgroundImage}')`,
-                                    backgroundSize: "cover",
-                                    backgroundPosition: "center",
-                                    width: "100%",
-                                    height: "100%",
-                                    position: "relative",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                  }}
-                                >
-                                  <img
-                                    src={LogoImage}
-                                    alt="logo"
-                                    style={{
-                                      width: "100%",
-                                      height: "100%",
-                                      objectFit: "contain",
-                                      opacity: 0.95,
-                                    }}
-                                  />
-                                </div>
-                                {/* Moño superior */}
-                                <div className="gift-bow">
-                                  <div
-                                    className="gift-bow-center"
-                                    style={{
-                                      backgroundColor: "white",
-                                      border: `2px solid ${ball.color}`,
-                                    }}
-                                  >
-                                    <div
-                                      className="gift-bow-line"
-                                      style={{
-                                        backgroundColor: ball.color,
-                                      }}
-                                    />
-                                  </div>
-                                  <div
-                                    className="gift-bow-left"
-                                    style={{
-                                      backgroundColor: "white",
-                                      border: `2px solid ${ball.color}`,
-                                    }}
-                                  >
-                                    <div
-                                      className="gift-bow-line"
-                                      style={{
-                                        backgroundColor: ball.color,
-                                      }}
-                                    />
-                                  </div>
-                                  <div
-                                    className="gift-bow-right"
-                                    style={{
-                                      backgroundColor: "white",
-                                      border: `2px solid ${ball.color}`,
-                                    }}
-                                  >
-                                    <div
-                                      className="gift-bow-line"
-                                      style={{
-                                        backgroundColor: ball.color,
-                                      }}
-                                    />
-                                  </div>
-                                </div>
+                                {ball.type === "sphere" && (
+                                  <>
+                                    <div className="ornament-sphere" />
+                                    <div className="ornament-shine" />
+                                    <div className="ornament-hook-small" />
+                                  </>
+                                )}
+                                {ball.type === "cookie" && (
+                                  <>
+                                    <div className="ornament-cookie" />
+                                    <div className="cookie-decoration cookie-decoration-1" />
+                                    <div className="cookie-decoration cookie-decoration-2" />
+                                    <div className="cookie-decoration cookie-decoration-3" />
+                                  </>
+                                )}
+                                {ball.type === "star" && (
+                                  <>
+                                    <div className="ornament-star" />
+                                    <div className="star-shine" />
+                                  </>
+                                )}
+                                {ball.type === "bell" && (
+                                  <>
+                                    <div className="ornament-bell" />
+                                    <div className="bell-clapper" />
+                                  </>
+                                )}
+                                {ball.type === "snowflake" && (
+                                  <>
+                                    <div className="ornament-snowflake" />
+                                  </>
+                                )}
                               </div>
                             ))}
                           {!isSpinning && (
@@ -816,99 +990,76 @@ function App() {
               <div className="card shadow-lg border-0 rounded-4 mb-3 mb-md-4">
                 <div className="card-body p-3">
                   <div>
-                    {loadingPremios && (
-                      <div className="text-center py-3">
-                        <div
-                          className="spinner-border spinner-border-sm me-2"
-                          role="status"
-                        ></div>
-                        Cargando premios...
-                      </div>
-                    )}
-
-                    {premiosError && (
-                      <div className="alert alert-danger small mb-3">
-                        {premiosError}
-                      </div>
-                    )}
-
-                    {premios.length > 0 && (
-                      <div>
-                        <label className="form-label small fw-medium mb-2 d-block">
-                          Seleccionar premio:
-                        </label>
-                        <Autocomplete
-                          options={premios}
-                          getOptionLabel={(option) =>
-                            `${option.nombre} (${
-                              option.cantidad_ganadores
-                            } ganador${
-                              option.cantidad_ganadores > 1 ? "es" : ""
-                            })`
-                          }
-                          value={
-                            premios.find((p) => p.id === selectedPremioId) ||
-                            null
-                          }
-                          onChange={(_, newValue) => {
-                            handlePremioSelection(
-                              newValue ? newValue.id.toString() : ""
-                            );
-                          }}
-                          disabled={
-                            isSpinning || isWaitingForWinner || loadingPremios
-                          }
-                          isOptionEqualToValue={(option, value) =>
-                            option.id === value.id
-                          }
-                          renderInput={(params) => (
-                            <TextField
-                              {...params}
-                              placeholder="Buscar y seleccionar un premio..."
-                              variant="outlined"
-                              sx={{
-                                "& .MuiOutlinedInput-root": {
-                                  borderRadius: "0.5rem",
-                                  backgroundColor: "white",
-                                  fontSize: "1rem",
-                                  padding: "12px 14px",
-                                  "&:hover .MuiOutlinedInput-notchedOutline": {
+                    <div>
+                      <label className="form-label small fw-medium mb-2 d-block">
+                        Seleccionar premio:
+                        {premios.filter((p) => p.activo).length === 0 && (
+                          <span className="text-muted small d-block mt-1">
+                            (Todos los premios han sido ganados)
+                          </span>
+                        )}
+                      </label>
+                      <Autocomplete
+                        options={premios.filter((p) => p.activo)}
+                        getOptionLabel={(option) => option.nombre}
+                        value={
+                          premios.find((p) => p.id === selectedPremioId) || null
+                        }
+                        onChange={(_, newValue) => {
+                          handlePremioSelection(
+                            newValue ? newValue.id.toString() : ""
+                          );
+                        }}
+                        disabled={isSpinning || isWaitingForWinner}
+                        isOptionEqualToValue={(option, value) =>
+                          option.id === value.id
+                        }
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            placeholder="Buscar y seleccionar un premio..."
+                            variant="outlined"
+                            sx={{
+                              "& .MuiOutlinedInput-root": {
+                                borderRadius: "0.5rem",
+                                backgroundColor: "white",
+                                fontSize: "1rem",
+                                padding: "12px 14px",
+                                "&:hover .MuiOutlinedInput-notchedOutline": {
+                                  borderColor: "#cd040a",
+                                },
+                                "&.Mui-focused .MuiOutlinedInput-notchedOutline":
+                                  {
                                     borderColor: "#cd040a",
+                                    borderWidth: "2px",
                                   },
-                                  "&.Mui-focused .MuiOutlinedInput-notchedOutline":
-                                    {
-                                      borderColor: "#cd040a",
-                                      borderWidth: "2px",
-                                    },
-                                },
-                                "& .MuiInputLabel-root.Mui-focused": {
-                                  color: "#cd040a",
-                                },
-                              }}
-                            />
-                          )}
-                          sx={{
-                            "& .MuiAutocomplete-inputRoot": {
-                              fontSize: "1rem",
-                            },
-                          }}
-                          componentsProps={{
-                            popper: {
-                              sx: {
-                                "& .MuiPaper-root": {
-                                  animation: "none !important",
-                                  transition:
-                                    "opacity 0.15s ease-in-out !important",
-                                  transform: "none !important",
-                                },
+                              },
+                              "& .MuiInputLabel-root.Mui-focused": {
+                                color: "#cd040a",
+                              },
+                            }}
+                          />
+                        )}
+                        sx={{
+                          "& .MuiAutocomplete-inputRoot": {
+                            fontSize: "1rem",
+                          },
+                        }}
+                        componentsProps={{
+                          popper: {
+                            sx: {
+                              "& .MuiPaper-root": {
+                                animation: "none !important",
+                                transition:
+                                  "opacity 0.15s ease-in-out !important",
+                                transform: "none !important",
                               },
                             },
-                          }}
-                          noOptionsText="No se encontraron premios"
-                          loadingText="Cargando premios..."
-                        />
-                      </div>
-                    )}
+                          },
+                        }}
+                        noOptionsText="No se encontraron premios"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -943,16 +1094,29 @@ function App() {
                       className="mb-3 p-3 bg-white bg-opacity-50 rounded-3"
                     >
                       <p className="fs-4 fs-md-3 fw-bold mb-2 text-center">
-                        {ganador.nombre}
+                        #{ganador.numero_participante} - {ganador.nombre}
                       </p>
-                      <p className="small text-muted mb-1 text-center">
-                        Participante: {ganador.numero_participante}
-                      </p>
+                      {currentPremioNombre && (
+                        <p className="small text-muted mb-1 text-center">
+                          Premio: {currentPremioNombre}
+                        </p>
+                      )}
                       {index < currentWinners.length - 1 && (
                         <hr className="my-3" />
                       )}
                     </div>
                   ))}
+                  <div className="mt-3 d-flex flex-column gap-2">
+                    <button
+                      onClick={handleGanadorNoEsta}
+                      style={{
+                        border: "1px solid #fff",
+                      }}
+                      className="btn btn-outline-danger btn-sm d-flex align-items-center justify-content-center gap-2"
+                    >
+                      <span className="text-white">No está</span>
+                    </button>
+                  </div>
                   <div className="mt-2 small opacity-75 text-center">
                     🌟 ¡Increíble suerte! 🌟
                   </div>
@@ -978,15 +1142,9 @@ function App() {
                       );
                       return premio ? (
                         <div className="p-3 bg-light rounded-3">
-                          <p className="fw-bold text-dark mb-2">
+                          <p className="fw-bold text-dark mb-0">
                             {premio.nombre}
                           </p>
-                          <div className="d-flex align-items-center gap-2">
-                            <span className="badge bg-primary">
-                              {premio.cantidad_ganadores} ganador
-                              {premio.cantidad_ganadores > 1 ? "es" : ""}
-                            </span>
-                          </div>
                         </div>
                       ) : null;
                     })()}
@@ -1019,21 +1177,13 @@ function App() {
                         <div className="winner-position">{index + 1}</div>
                         <div className="flex-grow-1">
                           <p className="fw-bold text-dark mb-1">
-                            {winner.nombre}
+                            #{winner.numero_participante} - {winner.nombre}
                           </p>
-                          <div className="d-flex align-items-center gap-2 flex-wrap">
-                            <span className="small text-muted">
-                              Participante: {winner.numero_participante}
-                            </span>
-                            {winner.premioNombre && (
-                              <>
-                                <span className="small text-muted">•</span>
-                                <span className="small text-muted fw-medium">
-                                  Premio: {winner.premioNombre}
-                                </span>
-                              </>
-                            )}
-                          </div>
+                          {winner.premioNombre && (
+                            <p className="small text-muted mb-0">
+                              Premio: {winner.premioNombre}
+                            </p>
+                          )}
                         </div>
                         <Trophy
                           className="text-warning"
