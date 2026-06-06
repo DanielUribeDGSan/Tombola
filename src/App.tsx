@@ -24,8 +24,8 @@ import AudioRuleta from "./assets/mp3/ruleta1.mp3";
 import AudioFelicitacion from "./assets/mp3/congratulations.mp3";
 import { boletosService, type Boleto } from "./api/fetch";
 
-import BackgroundImage from "./assets/img/back-dinamica.png";
-import LogoImage from "./assets/img/logo_1.png";
+import BackgroundImage from "./assets/fondo_dorado.jpeg";
+import LogoImage from "./assets/Logo_51_Aspidpro.png";
 
 interface Participant {
   id: string;
@@ -51,11 +51,43 @@ interface CategoryData {
   participants: Participant[];
 }
 
+const BowSVG = () => (
+  <svg viewBox="0 0 100 100" style={{ position: 'absolute', top: '-60%', left: '50%', transform: 'translateX(-50%)', width: '130%', height: '130%', filter: 'drop-shadow(0px 2px 3px rgba(0,0,0,0.5))', zIndex: 10, pointerEvents: 'none' }}>
+    <defs>
+      <linearGradient id="bowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stopColor="#ffffff" />
+        <stop offset="100%" stopColor="#d4d4d4" />
+      </linearGradient>
+      <linearGradient id="bowGradDark" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stopColor="#e0e0e0" />
+        <stop offset="100%" stopColor="#b0b0b0" />
+      </linearGradient>
+    </defs>
+    
+    {/* Colas (Tails) - Abiertas a los lados */}
+    <path d="M 45 55 Q 15 65 5 85 Q 25 75 42 58 Z" fill="url(#bowGradDark)" />
+    <path d="M 55 55 Q 85 65 95 85 Q 75 75 58 58 Z" fill="url(#bowGradDark)" />
+    
+    {/* Lazo Izquierdo (Left Loop) */}
+    <path d="M 50 50 C 10 10, 0 60, 45 55 Z" fill="url(#bowGrad)" />
+    {/* Lazo Derecho (Right Loop) */}
+    <path d="M 50 50 C 90 10, 100 60, 55 55 Z" fill="url(#bowGrad)" />
+    
+    {/* Sombras interiores para profundidad 3D */}
+    <path d="M 45 50 C 25 25, 15 45, 35 52 Z" fill="rgba(0,0,0,0.15)" />
+    <path d="M 55 50 C 75 25, 85 45, 65 52 Z" fill="rgba(0,0,0,0.15)" />
+    
+    {/* Nudo (Knot) */}
+    <rect x="42" y="42" width="16" height="16" rx="6" fill="url(#bowGrad)" />
+    <path d="M 46 42 V 58 M 50 42 V 58 M 54 42 V 58" stroke="rgba(0,0,0,0.05)" strokeWidth="1" />
+  </svg>
+);
+
 function App() {
   const SPIN_DURATION = 9000;
   const WINNER_WAIT_DURATION = 1000; // 4 segundos adicionales para mostrar el ganador
-  const TOMBOLA_RADIUS = 180 + 30;
-  const BALL_RADIUS = 18;
+  const TOMBOLA_RADIUS = 260;
+  const BALL_RADIUS = 24;
   const GRAVITY = 0.15;
   const FRICTION = 0.985;
   const BOUNCE_DAMPING = 0.9;
@@ -89,16 +121,14 @@ function App() {
   const isSpinningRef = useRef(false);
 
   const colors = [
-    "#EF4444",
-    "#F97316",
-    "#F59E0B",
-    "#84CC16",
-    "#22C55E",
-    "#06B6D4",
-    "#3B82F6",
-    "#8B5CF6",
-    "#EC4899",
-    "#F43F5E",
+    "#D8B858", // Dorado principal
+    "#0898D8", // Azul claro
+    "#D89828", // Naranja / Dorado oscuro
+    "#0878B8", // Azul oscuro
+    "#F8D868", // Amarillo brillante
+    "#B87818", // Cobre
+    "#F8F8D8", // Crema
+    "#583818", // Café
   ];
 
   // Función para convertir boletos a participantes
@@ -617,11 +647,11 @@ function App() {
                       ref={tombolaRef}
                       className="tombola-wheel"
                       style={{
-                        background: "linear-gradient(145deg, #e2e8f0, #cbd5e1)",
+                        background: "linear-gradient(145deg, #ffffff, #f1f5f9)",
                         borderRadius: "50%",
-                        border: "0.5rem solid #64748b",
+                        border: "0.5rem solid #043258",
                         boxShadow:
-                          "inset 0 8px 16px rgba(0,0,0,0.2), 0 16px 64px rgba(0,0,0,0.3)",
+                          "inset 0 0 20px rgba(216, 184, 88, 0.5), 0 0 0 4px #D8B858, 0 16px 64px rgba(0,0,0,0.3)",
                         transition: "transform 0.5s ease",
                         position: "relative",
                         overflow: "hidden",
@@ -658,6 +688,10 @@ function App() {
                               }`}
                               style={{
                                 backgroundColor: ball.color,
+                                backgroundImage: `url(${BackgroundImage})`,
+                                backgroundSize: "cover",
+                                backgroundPosition: "center",
+                                backgroundBlendMode: "overlay",
                                 position: "absolute",
                                 left: `${ball.x - BALL_RADIUS}px`,
                                 top: `${ball.y - BALL_RADIUS}px`,
@@ -680,6 +714,7 @@ function App() {
                               }}
                             >
                               <div className="participant-ball-content">
+                                <BowSVG />
                                 <span className="participant-initial">
                                   {ball.name.charAt(0).toUpperCase()}
                                 </span>

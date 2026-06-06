@@ -68,7 +68,7 @@ body {
   transform: translate(-50%, -50%);
   width: 5rem;
   height: 5rem;
-  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  background: linear-gradient(135deg, #F8D868, #D8B858);
   border-radius: 50%;
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
   display: flex;
@@ -77,37 +77,88 @@ body {
   z-index: 20;
 }
 
-/* Pelotas de participantes */
+/* Pelotas de participantes -> Regalos 3D Realistas */
 .participant-ball {
   position: absolute;
-  width: 2.5rem;
+  width: 2.5rem; /* El tamaño principal viene de App.tsx */
   height: 2.5rem;
-  border-radius: 50%;
-  border: 2px solid #374151;
-  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 
+    inset -6px -6px 12px rgba(0, 0, 0, 0.35), 
+    inset 6px 6px 12px rgba(255, 255, 255, 0.5),
+    0 8px 16px rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
+  overflow: visible; /* Para el moño */
+}
+
+/* Cintas del regalo (3D ribbons) */
+.participant-ball::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 18%;
+  background: linear-gradient(90deg, #fdfbfb 0%, #ebedee 50%, #fdfbfb 100%);
+  box-shadow: 2px 0 4px rgba(0,0,0,0.3), -2px 0 4px rgba(0,0,0,0.3);
+  transform: translateX(-50%);
+  z-index: 1;
+  border-radius: 2px;
+}
+.participant-ball::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 18%;
+  background: linear-gradient(180deg, #fdfbfb 0%, #ebedee 50%, #fdfbfb 100%);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3), 0 -2px 4px rgba(0,0,0,0.3);
+  transform: translateY(-50%);
+  z-index: 1;
+  border-radius: 2px;
 }
 
 .participant-ball-content {
-  width: 1.75rem;
-  height: 1.75rem;
-  background: white;
-  border-radius: 50%;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  box-shadow: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid #d1d5db;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+  z-index: 3; /* Sobre las cintas */
 }
 
+
+
 .participant-initial {
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: #374151;
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: #1f2937;
+  text-shadow: 1px 1px 0px rgba(255, 255, 255, 0.9), -1px -1px 0px rgba(255, 255, 255, 0.9), 0 0 4px rgba(255, 255, 255, 0.8);
   line-height: 1;
+  z-index: 5;
+}
+
+/* Nudo central del moño */
+.participant-initial::before {
+  content: '';
+  position: absolute;
+  top: -12%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  background: radial-gradient(circle at 30% 30%, #ffffff 0%, #d4d4d4 100%);
+  border-radius: 50%;
+  transform: translateX(-50%);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+  z-index: 6; /* Sobre los lazos */
 }
 
 /* Colors de participantes y ganadores */
@@ -125,7 +176,7 @@ body {
 .winner-position {
   width: 2rem;
   height: 2rem;
-  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  background: linear-gradient(135deg, #F8D868, #D8B858);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -498,34 +549,44 @@ body {
   z-index: 20;
 }
 
-/* Pelotas de participantes */
+/* Pelotas de participantes -> Regalos 3D Realistas */
 .participant-ball {
-  border-radius: 50%;
-  border: 2px solid #374151;
-  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 
+    inset -6px -6px 12px rgba(0, 0, 0, 0.35), 
+    inset 6px 6px 12px rgba(255, 255, 255, 0.5),
+    0 8px 16px rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: visible;
 }
 
 .participant-ball-content {
-  width: 1.75rem;
-  height: 1.75rem;
-  background: white;
-  border-radius: 50%;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  box-shadow: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid #d1d5db;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+  z-index: 3;
 }
 
+
+
 .participant-initial {
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: #374151;
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: #1f2937;
+  text-shadow: 1px 1px 0px rgba(255, 255, 255, 0.9), -1px -1px 0px rgba(255, 255, 255, 0.9), 0 0 4px rgba(255, 255, 255, 0.8);
   line-height: 1;
+  z-index: 5;
 }
+
+
 
 /* Colors de participantes y ganadores */
 .participant-color {
@@ -542,7 +603,7 @@ body {
 .winner-position {
   width: 2rem;
   height: 2rem;
-  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  background: linear-gradient(135deg, #F8D868, #D8B858);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -745,14 +806,17 @@ body {
 }
 
 .logo-image {
-  width: 50%;
+  width: 17%;
+}
 
-  /* Móviles medianos (576px a 767px) */
-  @media (min-width: 576px) and (max-width: 767.98px) {
-    width: 70%;
-  }
-  /* Tablets (768px a 991px) */
-  @media (min-width: 768px) and (max-width: 991.98px) {
-    width: 50%;
-  }
+/* Override btn-primary colors with the new palette */
+.btn-primary {
+  background-color: #0878B8 !important;
+  border-color: #0878B8 !important;
+  color: white !important;
+}
+.btn-primary:hover, .btn-primary:active, .btn-primary:focus {
+  background-color: #0898D8 !important;
+  border-color: #0898D8 !important;
+  color: white !important;
 }
